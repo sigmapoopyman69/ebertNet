@@ -1,0 +1,43 @@
+# ebertNet starter Wisp server configuration.
+# Intentionally restricted to a tiny test allowlist until authentication
+# and deployment protections are added.
+[server]
+bind = ["tcp", "0.0.0.0:__PORT__"]
+transport = "websocket"
+resolve_ipv6 = false
+tcp_nodelay = true
+use_real_ip_headers = false
+non_ws_response = "ebertNet Wisp endpoint"
+max_message_size = 65536
+log_level = "info"
+
+[wisp]
+allow_wsproxy = false
+buffer_size = 128
+prefix = ""
+wisp_v2 = true
+extensions = ["motd"]
+auth_extension = "none"
+password_extension_required = true
+certificate_extension_required = true
+motd_extension = "ebertNet Wisp gateway"
+
+[stream]
+tcp_nodelay = true
+buffer_size = 65536
+allow_udp = false
+allow_wsproxy_udp = false
+allow_direct_ip = false
+allow_loopback = false
+allow_multicast = false
+allow_global = true
+allow_non_global = false
+
+# Starter allowlist only. Add domains you own or have permission to test.
+allow_hosts = [
+  "^(example\\.com|www\\.example\\.com)$",
+  "^(developer\\.mozilla\\.org)$"
+]
+
+# Only standard web ports.
+allow_ports = [[80, 80], [443, 443]]
