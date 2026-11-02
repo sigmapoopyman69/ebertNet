@@ -1,6 +1,5 @@
 # ebertNet starter Wisp server configuration.
-# Intentionally restricted to a tiny test allowlist until authentication
-# and deployment protections are added.
+# Intentionally restricted to a tiny test allowlist.
 [server]
 bind = ["tcp", "0.0.0.0:__PORT__"]
 transport = "websocket"
@@ -17,9 +16,6 @@ buffer_size = 128
 prefix = ""
 wisp_v2 = true
 extensions = ["motd"]
-auth_extension = "none"
-password_extension_required = true
-certificate_extension_required = true
 motd_extension = "ebertNet Wisp gateway"
 
 [stream]
