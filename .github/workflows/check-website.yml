@@ -1,0 +1,36 @@
+name: Check ebertNet website
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check-website:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get repository files
+        uses: actions/checkout@v4
+
+      - name: Check homepage
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          page = Path("index.html")
+
+          if not page.exists():
+              raise SystemExit("ERROR: index.html is missing")
+
+          html = page.read_text(encoding="utf-8")
+
+          if not html.strip():
+              raise SystemExit("ERROR: index.html is empty")
+
+          if "<html" not in html.lower():
+              raise SystemExit("ERROR: HTML document tag is missing")
+
+          print("ebertNet homepage check passed!")
+          PY
