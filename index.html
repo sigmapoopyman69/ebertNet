@@ -139,14 +139,21 @@ function navigate(raw,fromList=false){
  if(!isSearch){state.history.push({url,title:label(url),at:Date.now()});state.history=state.history.slice(-300)}
  renderTabs();renderLists();updateNav();save()
 }
-async function loadFrame(url){
+async function loadFrame(url,request={}){
  welcome.style.display='none';blocked.style.display='none';frame.style.display='block';
  try{
   const parsed=new URL(url);
   if(!['https:','http:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS websites are supported.');
+  const method=(request.method||'GET').toUpperCase();
+  if(!['GET','POST'].includes(method))throw new Error('This form method is not supported.');
   $('backendStatus').textContent='Fetching '+parsed.hostname+' through Epoxy…';
   const client=await getEpoxyClient();
-  const response=await client.fetch(parsed.href,{headers:{'Accept':'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8'}});
+  const fetchOptions={method,headers:{'Accept':'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8'}};
+  if(method==='POST'){
+   fetchOptions.headers['Content-Type']='application/x-www-form-urlencoded;charset=UTF-8';
+   fetchOptions.body=String(request.body||'');
+  }
+  const response=await client.fetch(parsed.href,fetchOptions);
   if(!response.ok)throw new Error('Website returned HTTP '+response.status);
   const contentType=(response.headers.get('content-type')||'').toLowerCase();
   if(contentType.includes('text/css')||contentType.includes('javascript')||contentType.startsWith('image/')||contentType.startsWith('video/')||contentType.startsWith('audio/')){
@@ -252,13 +259,21 @@ async function loadFrame(url){
     let u;try{u=new URL(form.action||location.href,document.baseURI)}catch{return}
     if(u.protocol!=='https:'&&u.protocol!=='http:')return;
     e.preventDefault();
-    const method=(form.method||'get').toLowerCase();
+    const submitter=e.submitter||null;
+    const method=(submitter&&submitter.hasAttribute('formmethod')?submitter.formMethod:form.method||'get').toLowerCase();
+    if(submitter&&submitter.hasAttribute('formaction')){
+     try{u=new URL(submitter.formAction,document.baseURI)}catch{}
+    }
+    if(u.protocol!=='https:'&&u.protocol!=='http:')return;
+    const data=new FormData(form,submitter||undefined);
+    const pairs=[];
+    for(const [key,value] of data.entries())if(typeof value==='string')pairs.push([key,value]);
     if(method==='get'){
-     const data=new FormData(form,e.submitter||undefined);
-     for(const [key,value] of data.entries())if(typeof value==='string')u.searchParams.append(key,value);
+     for(const [key,value] of pairs)u.searchParams.append(key,value);
      parent.postMessage({type:'ebert-navigate',url:u.href},'*');
-    }else{
-     parent.postMessage({type:'ebert-form',url:u.href},'*');
+    }else if(method==='post'){
+     const body=new URLSearchParams(pairs).toString();
+     parent.postMessage({type:'ebert-form',url:u.href,method:'POST',body},'*');
     }
    },true);
   })();`;
@@ -279,7 +294,20 @@ $('back').onclick=()=>{const t=tab();if(t.index>0){t.index--;t.url=t.entries[t.i
 $('forward').onclick=()=>{const t=tab();if(t.index<t.entries.length-1){t.index++;t.url=t.entries[t.index];t.title=label(t.url);address.value=t.url;loadFrame(t.url);renderTabs();updateNav();save()}};
 $('reload').onclick=()=>{if(tab().url)loadFrame(tab().url)};
 
-window.addEventListener('message',event=>{if(event.source!==frame.contentWindow||!event.data||typeof event.data!=='object')return;if(event.data.type==='ebert-navigate'&&typeof event.data.url==='string'){try{const target=new URL(event.data.url);if(['http:','https:'].includes(target.protocol))navigate(target.href,true)}catch{}}else if(event.data.type==='ebert-form')$('backendStatus').textContent='Form submission is disabled in the isolated preview.'});
+window.addEventListener('message',event=>{
+ if(event.source!==frame.contentWindow||!event.data||typeof event.data!=='object')return;
+ if(event.data.type==='ebert-navigate'&&typeof event.data.url==='string'){
+  try{const target=new URL(event.data.url);if(['http:','https:'].includes(target.protocol))navigate(target.href,true)}catch{}
+ }else if(event.data.type==='ebert-form'&&typeof event.data.url==='string'){
+  try{
+   const target=new URL(event.data.url);
+   if(!['http:','https:'].includes(target.protocol)||typeof event.data.body!=='string'||event.data.body.length>100000)return;
+   const t=tab();t.entries=t.entries.slice(0,t.index+1);t.entries.push(target.href);t.index=t.entries.length-1;t.url=target.href;t.title=label(target.href);
+   address.value=target.href;loadFrame(target.href,{method:'POST',body:event.data.body});
+   renderTabs();updateNav();save();
+  }catch{}
+ }
+});
 $('home').onclick=()=>navigate('https://search.brave.com/',true);
 $('backHome').onclick=$('home').onclick;
 $('settingsToggle').onclick=()=> $('settingsPanel').classList.toggle('open');
