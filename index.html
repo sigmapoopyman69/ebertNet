@@ -177,7 +177,7 @@ async function loadFrame(url){
       code=(await scriptResponse.text()).slice(0,350000);
      }catch{continue}
     }
-    if(code && code.length<=350000)scriptPayloads.push(code.replace(/<\\/script/gi,'<\\\\/script'));
+    if(code && code.length<=350000)scriptPayloads.push(code.replace(/<\/script/gi,'<\\/script'));
    }
   }
   const safeHead=safeDoc.head;
@@ -203,7 +203,7 @@ async function loadFrame(url){
     if(!ALLOWED_HOSTS.has(asset.hostname)||!['http:','https:'].includes(asset.protocol))return '';
     const res=await client.fetch(asset.href);if(!res.ok)return '';
     const type=(res.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
-    if(!/^(video\\/(mp4|webm|ogg)|audio\\/(mpeg|mp3|mp4|ogg|wav|webm|aac))$/.test(type))return '';
+    if(!/^(video\/(mp4|webm|ogg)|audio\/(mpeg|mp3|mp4|ogg|wav|webm|aac))$/.test(type))return '';
     const buffer=await res.arrayBuffer();if(buffer.byteLength>20000000)return '';
     const bytes=new Uint8Array(buffer);let binary='';
     for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
@@ -279,7 +279,7 @@ async function loadFrame(url){
   let safeContent=safeDoc.body.innerHTML;
   if(!safeContent.trim())safeContent='<p>This page did not contain readable HTML text.</p>';
   const baseCss='*{box-sizing:border-box}html{background:#fff}body{margin:0;padding:clamp(18px,3.5vw,48px);max-width:1200px;margin-inline:auto;background:#fff;color:#202124;font:16px/1.6 Arial,sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto;object-fit:contain}a{cursor:pointer}table{border-collapse:collapse;max-width:100%;display:block;overflow:auto}td,th{border:1px solid #ddd;padding:8px;text-align:left}pre{white-space:pre-wrap;overflow:auto;background:#f4f4f4;padding:12px;border-radius:6px}';
-  const csp='<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\' data:; img-src data: blob:; media-src data: blob:; font-src data:; connect-src \'none\'; frame-src https:; object-src \'none\'; form-action \'none\'; base-uri \'none\'>';
+  const csp='<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\' data:; img-src data: blob:; media-src data: blob:; font-src data:; connect-src \'none\'; frame-src https://youtube.com https://www.youtube.com https://m.youtube.com https://example.com https://developer.mozilla.org https://duckduckgo.com https://www.duckduckgo.com; object-src \'none\'; form-action \'none\'; base-uri \'none\'>';
   const scripts=scriptPayloads.map(code=>'<script>'+code+'</scr'+'ipt>').join('');
   const bridge='<script>document.addEventListener(\'click\',function(e){var a=e.target.closest(\'a[href]\');if(a){var u=new URL(a.href,location.href);if(u.protocol===\'https:\'||u.protocol===\'http:\'){e.preventDefault();parent.postMessage({type:\'ebert-navigate\',url:u.href},\'*\')}}});document.addEventListener(\'submit\',function(e){e.preventDefault();parent.postMessage({type:\'ebert-form\'},\'*\')});</scr'+'ipt>';
   frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(pageTitle)+'</title>'+csp+'<style>'+baseCss+'</style>'+safeHead.innerHTML+'</head><body>'+safeContent+bridge+scripts+'</body></html>';
