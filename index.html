@@ -37,7 +37,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
 </div>
 <div class="tabs" id="tabs"></div>
-<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Stage 1 renders safe, readable HTML content; scripts and external assets are not run.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
+<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Stage 2 loads sanitized stylesheets and images through Epoxy. Scripts and active embeds remain disabled.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
 
 <section class="viewer">
 <div class="welcome" id="welcome"><div class="welcome-inner">
@@ -48,7 +48,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="quick" data-url="https://developer.mozilla.org">MDN Docs</button>
 <button class="quick" data-url="https://www.wikipedia.org">Wikipedia</button>
 </div>
-<p>Stage 1 supports readable page content on the two enabled demo hosts. Scripts, images, stylesheets, and interactive embeds are not loaded yet.</p>
+<p>Stage 2 supports sanitized CSS and images on the two enabled demo hosts. Scripts and active embeds remain disabled.</p>
 </div></div>
 <iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-same-origin allow-downloads" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
 <div class="blocked" id="blocked"><div><h2>Page rendering is not available yet</h2><p>The current prototype still uses a basic page container. The next browser-engine milestone is rendering fetched page content through the ebertNet backend.</p><button id="backHome">Return to ebertNet home</button></div></div>
@@ -122,29 +122,89 @@ async function loadFrame(url){
   $('backendStatus').textContent='Fetching '+parsed.hostname+' through Epoxy…';
   const client=await getEpoxyClient();
   const response=await client.fetch(parsed.href);
+  if(!response.ok)throw new Error('Website returned HTTP '+response.status);
   const body=await response.text();
   const parsedDoc=new DOMParser().parseFromString(body,'text/html');
   const pageTitle=(parsedDoc.title||parsed.hostname).slice(0,120);
-  const allowedTags=new Set(['MAIN','ARTICLE','SECTION','HEADER','FOOTER','NAV','DIV','SPAN','P','H1','H2','H3','H4','H5','H6','UL','OL','LI','BLOCKQUOTE','PRE','CODE','STRONG','B','EM','I','SMALL','BR','HR','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','DL','DT','DD']);
-  function cleanNode(node,outDoc){
-   if(node.nodeType===Node.TEXT_NODE)return outDoc.createTextNode(node.nodeValue||'');
+  const cleanCss=css=>String(css||'')
+   .replace(/\/\*[\s\S]*?\*\//g,'')
+   .replace(/@import[^;]+;?/gi,'')
+   .replace(/url\s*\([^)]*\)/gi,'none')
+   .replace(/expression\s*\([^)]*\)/gi,'')
+   .replace(/behavior\s*:[^;]+;?/gi,'')
+   .replace(/-moz-binding\s*:[^;]+;?/gi,'')
+   .replace(/javascript\s*:/gi,'');
+  const safeDoc=document.implementation.createHTMLDocument(pageTitle);
+  const safeHead=safeDoc.head;
+  const styleBlocks=Array.from(parsedDoc.querySelectorAll('style')).slice(0,12);
+  styleBlocks.forEach(node=>{const st=safeDoc.createElement('style');st.textContent=cleanCss(node.textContent);safeHead.appendChild(st)});
+  let cssCount=0,imageCount=0;
+  const cssLinks=Array.from(parsedDoc.querySelectorAll('link[rel~="stylesheet"][href]')).slice(0,6);
+  for(const link of cssLinks){
+   try{
+    const asset=new URL(link.getAttribute('href'),parsed.href);
+    if(!ALLOWED_HOSTS.has(asset.hostname)||!['http:','https:'].includes(asset.protocol))continue;
+    const cssResponse=await client.fetch(asset.href);
+    if(!cssResponse.ok)continue;
+    const cssText=(await cssResponse.text()).slice(0,300000);
+    const st=safeDoc.createElement('style');st.textContent=cleanCss(cssText);safeHead.appendChild(st);cssCount++;
+   }catch{}
+  }
+  const allowedTags=new Set(['MAIN','ARTICLE','SECTION','HEADER','FOOTER','NAV','DIV','SPAN','P','H1','H2','H3','H4','H5','H6','UL','OL','LI','BLOCKQUOTE','PRE','CODE','STRONG','B','EM','I','SMALL','BR','HR','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','DL','DT','DD','FIGURE','FIGCAPTION','PICTURE','IMG','A','TIME','ADDRESS','DETAILS','SUMMARY','MARK','SUB','SUP']);
+  const allowedStyle=/^(color|background-color|font-family|font-size|font-weight|font-style|line-height|text-align|text-decoration|white-space|display|visibility|opacity|margin|margin-top|margin-right|margin-bottom|margin-left|padding|padding-top|padding-right|padding-bottom|padding-left|border|border-color|border-width|border-style|border-radius|max-width|min-width|width|height|max-height|min-height|list-style-type|vertical-align|object-fit|gap|grid-template-columns|flex|flex-direction|align-items|justify-content)$/i;
+  async function fetchImage(src){
+   try{
+    const asset=new URL(src,parsed.href);
+    if(!ALLOWED_HOSTS.has(asset.hostname)||!['http:','https:'].includes(asset.protocol))return '';
+    const res=await client.fetch(asset.href);if(!res.ok)return '';
+    const type=(res.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
+    if(!/^image\/(png|jpeg|gif|webp|avif|svg\+xml)$/.test(type))return '';
+    const buffer=await res.arrayBuffer();if(buffer.byteLength>1500000)return '';
+    const bytes=new Uint8Array(buffer);let binary='';
+    for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+    imageCount++;return 'data:'+type+';base64,'+btoa(binary);
+   }catch{return ''}
+  }
+  async function cleanNode(node){
+   if(node.nodeType===Node.TEXT_NODE)return safeDoc.createTextNode(node.nodeValue||'');
    if(node.nodeType!==Node.ELEMENT_NODE)return null;
    const tag=node.tagName;
-   if(['SCRIPT','STYLE','NOSCRIPT','IFRAME','OBJECT','EMBED','SVG','FORM','INPUT','BUTTON','VIDEO','AUDIO','CANVAS','TEMPLATE'].includes(tag))return null;
-   const outputTag=tag==='A'?'SPAN':(allowedTags.has(tag)?tag:'DIV');
-   const el=outDoc.createElement(outputTag);
-   if(tag==='A'){el.className='page-link';const href=node.getAttribute('href');if(href)el.title='Link: '+href;}
-   if(tag==='TH'||tag==='TD'){const span=node.getAttribute('colspan');if(span&&/^\\d{1,2}$/.test(span))el.setAttribute('colspan',span);}
-   for(const child of node.childNodes){const clean=cleanNode(child,outDoc);if(clean)el.appendChild(clean);}
+   if(['SCRIPT','NOSCRIPT','IFRAME','OBJECT','EMBED','SVG','FORM','INPUT','BUTTON','VIDEO','AUDIO','CANVAS','TEMPLATE','BASE','META','LINK'].includes(tag))return null;
+   if(tag==='IMG'){
+    if(imageCount>=15)return null;
+    const src=node.getAttribute('src')||node.getAttribute('data-src');
+    if(!src)return null;
+    const data=await fetchImage(src);if(!data)return null;
+    const img=safeDoc.createElement('img');img.src=data;img.alt=node.getAttribute('alt')||'';img.loading='lazy';
+    const width=node.getAttribute('width'),height=node.getAttribute('height');
+    if(width&&/^\d{1,4}$/.test(width))img.width=Number(width);
+    if(height&&/^\d{1,4}$/.test(height))img.height=Number(height);
+    img.style.maxWidth='100%';img.style.height='auto';return img;
+   }
+   const outputTag=allowedTags.has(tag)?tag:'div';
+   const el=safeDoc.createElement(outputTag);
+   if(tag==='A'){
+    const href=node.getAttribute('href');
+    if(href){try{const target=new URL(href,parsed.href);if(['http:','https:'].includes(target.protocol)&&ALLOWED_HOSTS.has(target.hostname)){el.setAttribute('data-ebert-href',target.href);el.style.color='#1769aa';el.style.textDecoration='underline';}else el.title='Link not available: outside the demo allowlist';}catch{}}
+   }
+   for(const attr of ['alt','title','colspan','rowspan','class','id','width','height','datetime']){
+    const value=node.getAttribute(attr);
+    if(value&&value.length<300&&(!['colspan','rowspan','width','height'].includes(attr)||/^\d{1,4}$/.test(value)))el.setAttribute(attr,value);
+   }
+   const inline=node.getAttribute('style');
+   if(inline){
+    inline.split(';').forEach(part=>{const pos=part.indexOf(':');if(pos<1)return;const prop=part.slice(0,pos).trim(),value=part.slice(pos+1).trim();if(allowedStyle.test(prop)&&value.length<160&&!/url\s*\(|expression|javascript:|@import/i.test(value))el.style.setProperty(prop,value)});
+   }
+   for(const child of node.childNodes){const clean=await cleanNode(child);if(clean)el.appendChild(clean)}
    return el;
   }
-  const safeDoc=document.implementation.createHTMLDocument(pageTitle);
   const source=parsedDoc.body||parsedDoc.documentElement;
-  for(const child of source.childNodes){const clean=cleanNode(child,safeDoc);if(clean)safeDoc.body.appendChild(clean);}
+  for(const child of source.childNodes){const clean=await cleanNode(child);if(clean)safeDoc.body.appendChild(clean)}
   let safeContent=safeDoc.body.innerHTML;
   if(!safeContent.trim())safeContent='<p>This page did not contain readable HTML text.</p>';
-  frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(pageTitle)+'</title><style>*{box-sizing:border-box}body{margin:0;padding:clamp(20px,4vw,52px);max-width:1100px;margin-inline:auto;background:#fff;color:#202124;font:16px/1.65 Arial,sans-serif;overflow-wrap:anywhere}h1,h2,h3,h4{line-height:1.2;margin:1.3em 0 .55em;color:#171717}h1{font-size:2.2rem}h2{font-size:1.7rem}p{margin:.8em 0}ul,ol{padding-left:2em}pre,code{font-family:ui-monospace,monospace;background:#f1f3f4;border-radius:5px}pre{padding:14px;overflow:auto;white-space:pre-wrap}blockquote{border-left:4px solid #dadce0;padding-left:16px;color:#555;margin:1em 0}table{border-collapse:collapse;max-width:100%;display:block;overflow:auto}td,th{border:1px solid #dadce0;padding:8px;text-align:left}.page-link{color:#1769aa;text-decoration:underline}</style></head><body>'+safeContent+'</body></html>';
-  $('backendStatus').textContent='CONNECTED · HTTP '+response.status+' · rendered '+pageTitle+' ('+body.length+' source characters)';
+  const baseCss='*{box-sizing:border-box}html{background:#fff}body{margin:0;padding:clamp(18px,3.5vw,48px);max-width:1200px;margin-inline:auto;background:#fff;color:#202124;font:16px/1.6 Arial,sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto;object-fit:contain}a{cursor:pointer}table{border-collapse:collapse;max-width:100%;display:block;overflow:auto}td,th{border:1px solid #ddd;padding:8px;text-align:left}pre{white-space:pre-wrap;overflow:auto;background:#f4f4f4;padding:12px;border-radius:6px}';
+  frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(pageTitle)+'</title><style>'+baseCss+'</style>'+safeHead.innerHTML+'</head><body>'+safeContent+'</body></html>';
+  $('backendStatus').textContent='STAGE 2 · HTTP '+response.status+' · '+pageTitle+' · '+cssCount+' stylesheets · '+imageCount+' images';
  }catch(error){
   frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{background:#100b0f;color:#fff;font:14px system-ui;padding:24px}h2{color:#ff8290}p{color:#cbbdc3}</style><h2>Epoxy fetch failed</h2><p>'+escapeHtml(error?.message||String(error))+'</p>';
   $('backendStatus').textContent='Fetch failed: '+(error?.message||String(error));
@@ -191,7 +251,7 @@ $('testBackend').onclick=async()=>{
  }
 };
 document.querySelectorAll('[data-url]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.url)));
-frame.addEventListener('load',()=>{blocked.style.display='none';});
+frame.addEventListener('load',()=>{blocked.style.display='none';try{const doc=frame.contentDocument;if(doc&&!doc.__ebertLinks){doc.__ebertLinks=true;doc.addEventListener('click',e=>{const link=e.target.closest('[data-ebert-href]');if(!link)return;e.preventDefault();const dest=link.getAttribute('data-ebert-href');if(dest)navigate(dest)});}}catch{}});
 frame.addEventListener('error',()=>{frame.style.display='none';blocked.style.display='flex';});
 $('backendUrl').value=storageGet('ebertnet-wisp-url','wss://ebertnet.wispbyte.app');
 $('backendUrl').addEventListener('change',()=>{epoxyClient=null;storageSet('ebertnet-wisp-url',$('backendUrl').value.trim())});
