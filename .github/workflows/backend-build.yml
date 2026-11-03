@@ -46,3 +46,17 @@ jobs:
 
       - name: Build Epoxy server container
         run: docker build --tag ebertnet-epoxy:test --file backend/Dockerfile .
+
+      - name: Smoke-test the Wisp listener
+        run: |
+          set -eu
+          docker run --detach --rm --name ebertnet-epoxy-smoke -p 8080:8080 ebertnet-epoxy:test
+          cleanup() { docker stop ebertnet-epoxy-smoke >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          for attempt in $(seq 1 30); do
+            if curl --silent --show-error --fail http://127.0.0.1:8080/ > response.txt; then
+              break
+            fi
+            sleep 2
+          done
+          grep -F "ebertNet Wisp endpoint" response.txt
