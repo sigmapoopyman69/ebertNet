@@ -69,7 +69,7 @@ function storageGet(key,fallback=''){try{return localStorage.getItem(key)??fallb
 function storageSet(key,value){try{localStorage.setItem(key,value)}catch{}}
 let searchEngine=storageGet('ebertnet-search-engine','duckduckgo');
 let epoxyClient=null;
-const ALLOWED_HOSTS=new Set(['example.com','developer.mozilla.org','youtube.com','www.youtube.com','m.youtube.com']);
+const ALLOWED_HOSTS=new Set(['example.com','developer.mozilla.org','youtube.com','www.youtube.com','m.youtube.com','duckduckgo.com','www.duckduckgo.com']);
 function escapeHtml(value){return String(value).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));}
 async function getEpoxyClient(){
  if(epoxyClient)return epoxyClient;
@@ -118,8 +118,7 @@ function navigate(raw,fromList=false){
  const url=isSearch?searchUrl(input):safeUrl(input);
  if(!url){address.focus();return}
  const t=tab();
- const searchResultLink=fromList&&/^(https?:\/\/)?(www\.)?(duckduckgo\.com|google\.com|search\.brave\.com|bing\.com)\//i.test(url);
- const openExternal=isSearch||searchResultLink;
+ const openExternal=false;
  if(!openExternal){
   let parsed;
   try{parsed=new URL(url)}catch{showNavigationError('Invalid web address','Check the address and try again.');return}
