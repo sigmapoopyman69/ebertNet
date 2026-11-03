@@ -90,13 +90,17 @@ function navigate(raw,fromList=false){
  const url=isSearch?searchUrl(input):safeUrl(input);
  if(!url){address.focus();return}
  const t=tab();
- if(!fromList){t.entries=t.entries.slice(0,t.index+1);t.entries.push(url);t.index=t.entries.length-1}
- t.url=url;t.title=isSearch?'Search: '+input.slice(0,28):label(url);address.value=isSearch?input:url;
- state.history.push({url,title:t.title,at:Date.now()});state.history=state.history.slice(-300);
- if(isSearch){
+ const searchResultLink=fromList&&/^(https?:\\/\\/)?(www\\.)?(duckduckgo\\.com|google\\.com|search\\.brave\\.com|bing\\.com)\\//i.test(url);
+ const openExternal=isSearch||searchResultLink;
+ if(!openExternal){
+  if(!fromList){t.entries=t.entries.slice(0,t.index+1);t.entries.push(url);t.index=t.entries.length-1}
+  t.url=url;t.title=label(url);address.value=url;loadFrame(url);
+ }else{
+  address.value=isSearch?input:url;
   const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.click();
   frame.style.display='none';blocked.style.display='none';welcome.style.display='flex';
- }else loadFrame(url);
+ }
+ state.history.push({url,title:isSearch?'Search: '+input.slice(0,28):label(url),at:Date.now()});state.history=state.history.slice(-300);
  renderTabs();renderLists();updateNav();save()
 }
 function loadFrame(url){welcome.style.display='none';blocked.style.display='none';frame.style.display='block';frame.src=url}
