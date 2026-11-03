@@ -4,64 +4,97 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#10080b">
-<title>ebertNet</title>
+<title>ebertNet — Browser</title>
 <style>
-:root{color-scheme:dark;--red:#ff334d;--red2:#a70f2b;--glass:rgba(13,10,13,.76);--line:rgba(255,255,255,.11);--muted:#b8aeb2}
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#090709;color:#fff}
-body{min-height:100vh;overflow-x:hidden}.scene{position:fixed;inset:0;z-index:0;background:#090709 url("./moon.jpg") center 48%/cover no-repeat;transform:scale(1.015)}
-.scene:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,4,7,.47),rgba(8,5,8,.38) 40%,rgba(5,4,7,.9)),radial-gradient(ellipse at 50% 42%,transparent 8%,rgba(0,0,0,.3) 78%)}
-.topbar{position:relative;z-index:2;display:flex;align-items:center;justify-content:space-between;padding:22px 28px}
-.brand-small{font-weight:850;letter-spacing:-.06em;font-size:19px}.brand-small span{color:var(--red)}
-.status{font-size:11px;color:#e9dfe2;border:1px solid var(--line);background:#100c0fbb;padding:8px 12px;border-radius:30px;backdrop-filter:blur(14px)}
-.status i{display:inline-block;width:7px;height:7px;border-radius:50%;background:#e64a5d;margin-right:7px;box-shadow:0 0 12px #ff334d}
-main{position:relative;z-index:1;min-height:calc(100vh - 80px);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:35px 20px 110px}
-.hero{text-align:center;margin-top:-25px}.logo{font-size:clamp(64px,11vw,112px);line-height:.95;font-weight:900;letter-spacing:-.095em;background:linear-gradient(140deg,#fff 28%,#ffdce0 54%,#ff4259 84%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 8px 34px #f31b3c40)}
-.subtitle{margin:17px 0 38px;text-transform:uppercase;letter-spacing:.28em;font-size:11px;color:#e0cbd0}
-.search-shell{width:min(690px,100%);padding:7px;border:1px solid rgba(255,255,255,.15);border-radius:21px;background:rgba(12,9,12,.79);box-shadow:0 24px 90px #0009,inset 0 1px #ffffff0c;backdrop-filter:blur(22px)}
-.search-form{display:flex;align-items:center;gap:10px}.search-icon{font-size:22px;color:#ff7180;padding:0 7px 0 13px}
-#address{flex:1;min-width:0;border:0;outline:0;background:transparent;color:white;font-size:15px;padding:16px 3px}
-#address::placeholder{color:#a99ca1}
-.go{border:0;border-radius:14px;padding:14px 22px;color:white;font-weight:750;background:linear-gradient(135deg,#ff5368,#b30d2b);box-shadow:0 7px 24px #e51b3c35;cursor:pointer;transition:.18s}
-.go:hover{filter:brightness(1.12);transform:translateY(-1px)}
-.shortcuts{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:25px}
-.shortcut{border:1px solid var(--line);background:#100c10a8;color:#e8dfe2;padding:10px 14px;border-radius:13px;font-size:12px;cursor:pointer;backdrop-filter:blur(12px);transition:.18s}
-.shortcut:hover{border-color:#ff536877;background:#241015}
-.notice{margin-top:28px;max-width:570px;text-align:center;color:#c6b9bd;font-size:12px;line-height:1.65}
-.notice strong{color:#fff}.footer{position:fixed;z-index:2;bottom:17px;left:0;right:0;text-align:center;color:#a99ba0;font-size:10px;letter-spacing:.16em}
-.toast{position:fixed;z-index:5;left:50%;bottom:52px;transform:translateX(-50%);padding:11px 16px;border:1px solid var(--line);border-radius:12px;background:#171014;color:#f5e9ec;font-size:12px;box-shadow:0 12px 40px #0009;display:none;max-width:calc(100vw - 30px);text-align:center}
-@media(max-width:560px){.topbar{padding:17px}.search-shell{padding:5px}.search-icon{padding-left:8px}.go{padding:13px 16px}.subtitle{letter-spacing:.17em}.notice{font-size:11px}}
+:root{color-scheme:dark;--red:#ff4058;--red2:#b71332;--bg:#090709;--panel:rgba(18,13,17,.94);--line:rgba(255,255,255,.11);--muted:#b9abb1}
+*{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:#fff}
+body{overflow:hidden}.scene{position:fixed;inset:0;background:#090709 url("./moon.jpg") center/cover no-repeat;opacity:.34;pointer-events:none}.scene:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#09070977,#090709eF)}
+button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display:flex;flex-direction:column;min-height:0}
+.topbar{height:58px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 19px;border-bottom:1px solid var(--line);background:#0c090ddd;backdrop-filter:blur(18px)}
+.brand{font-size:21px;font-weight:900;letter-spacing:-.07em}.brand span{color:var(--red)}.status{font-size:10px;letter-spacing:.12em;color:#c7b9bf;display:flex;align-items:center;gap:8px}.dot{width:7px;height:7px;border-radius:50%;background:#57c98b;box-shadow:0 0 10px #57c98b}
+.toolbar{display:flex;align-items:center;gap:7px;padding:10px 14px;background:#120d11eF;border-bottom:1px solid var(--line);flex:none}
+.tool{width:35px;height:35px;border:1px solid var(--line);border-radius:10px;background:#21171d;color:#eee;cursor:pointer}.tool:hover,.tool.active{border-color:#ff536877;background:#35131d}.tool:disabled{opacity:.35;cursor:not-allowed}
+.address-wrap{display:flex;align-items:center;gap:8px;flex:1;min-width:0;height:37px;padding:0 11px;border:1px solid #ffffff20;border-radius:11px;background:#080709}.lock{color:#72d49b;font-size:13px}#address{border:0;outline:0;background:transparent;color:#fff;min-width:0;width:100%;font-size:13px}#address::placeholder{color:#8f8288}.go{height:35px;padding:0 17px;border:0;border-radius:10px;background:linear-gradient(135deg,#ff5368,#b30d2b);color:#fff;font-weight:750;cursor:pointer}
+.tabs{display:flex;align-items:end;gap:5px;padding:7px 12px 0;background:#0d090c;border-bottom:1px solid var(--line);overflow-x:auto;flex:none}.tab{max-width:210px;min-width:125px;display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid transparent;border-bottom:0;border-radius:9px 9px 0 0;background:#171116;color:#cbbfc4;font-size:11px;cursor:pointer}.tab.active{background:#24171e;border-color:var(--line);color:white}.tabname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.tabclose{color:#a99aa1;font-size:15px}.newtab{border:0;background:transparent;color:#ff8290;font-size:20px;padding:4px 10px;cursor:pointer}
+.workspace{display:flex;flex:1;min-height:0;position:relative}.sidebar{width:250px;flex:none;background:#100b0fef;border-right:1px solid var(--line);padding:14px;overflow:auto}.sidehead{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}.sidehead strong{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#d9cbd0}.sideaction{border:0;background:transparent;color:#ff8290;cursor:pointer;font-size:11px}.sideitem{display:block;width:100%;text-align:left;padding:10px;border:1px solid transparent;border-radius:9px;background:transparent;color:#d8cbd0;cursor:pointer;margin:3px 0}.sideitem:hover{background:#24151d;border-color:#ffffff12}.sideitem .url{display:block;font-size:10px;color:#93858b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:4px}.empty{color:#897b82;font-size:11px;line-height:1.6;padding:8px}
+.viewer{flex:1;min-width:0;min-height:0;position:relative;background:#fff}.viewer iframe{width:100%;height:100%;border:0;background:#fff}.welcome{position:absolute;inset:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:30px;background:radial-gradient(ellipse at 50% 30%,#34121e,#130d12 65%,#090709);color:#fff}.welcome-inner{width:min(650px,100%);text-align:center}.welcome-logo{font-size:clamp(54px,9vw,90px);font-weight:950;letter-spacing:-.1em;background:linear-gradient(140deg,#fff,#ff9eaa 65%,#ff334d);-webkit-background-clip:text;background-clip:text;color:transparent}.tagline{font-size:10px;letter-spacing:.3em;color:#d7bfc6;margin:9px 0 28px}.welcome p{font-size:12px;line-height:1.7;color:#bcaeb4}.quicklinks{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin:20px 0}.quick{border:1px solid #ffffff20;background:#21151c;color:#f5e9ed;border-radius:10px;padding:10px 14px;font-size:11px;cursor:pointer}.quick:hover{border-color:#ff5368}
+.blocked{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:#100b0f;color:#fff;text-align:center}.blocked div{max-width:480px}.blocked h2{font-size:20px}.blocked p{color:#bcaeb4;font-size:12px;line-height:1.7}.blocked button{border:1px solid #ffffff22;background:#26151d;color:#fff;padding:10px 14px;border-radius:9px;cursor:pointer}
+.footer{flex:none;padding:7px 14px;border-top:1px solid var(--line);background:#0d090c;color:#94868d;font-size:10px;display:flex;justify-content:space-between;gap:12px}.footer b{color:#e6d8de;font-weight:600}
+@media(max-width:760px){.sidebar{display:none}.status{display:none}.toolbar{padding:8px;gap:5px}.tool{width:32px;height:34px}.go{padding:0 12px}.topbar{height:50px}.footer{font-size:9px}}
 </style>
 </head>
 <body>
 <div class="scene" aria-hidden="true"></div>
-<header class="topbar"><div class="brand-small">ebert<span>Net</span></div><div class="status"><i></i>NETWORK SETUP IN PROGRESS</div></header>
-<main>
-  <section class="hero">
-    <div class="logo">ebertNet</div>
-    <div class="subtitle">a darker way to explore</div>
-    <div class="search-shell">
-      <form class="search-form" id="browseForm">
-        <span class="search-icon" aria-hidden="true">⌕</span>
-        <input id="address" type="text" inputmode="url" autocomplete="url" spellcheck="false" placeholder="Enter a website address..." aria-label="Website address">
-        <button class="go" type="submit">Explore ↗</button>
-      </form>
-    </div>
-    <div class="shortcuts">
-      <button class="shortcut" data-url="https://example.com">Example</button>
-      <button class="shortcut" data-url="https://developer.mozilla.org">MDN Docs</button>
-      <button class="shortcut" data-url="https://wikipedia.org">Wikipedia</button>
-    </div>
-    <p class="notice"><strong>ebertNet is taking shape.</strong><br>This is the homepage prototype. The Epoxy/Wisp proxy connection has not been configured yet; browsing will open a regular browser tab for now.</p>
-  </section>
-</main>
-<div class="footer">EBERTNET <span style="color:#ff5368">/</span> BUILT FOR THE OPEN WEB</div>
-<div class="toast" id="toast" role="status"></div>
+<div class="app">
+<header class="topbar"><div class="brand">ebert<span>Net</span></div><div class="status"><i class="dot"></i> NORMAL CONNECTION · EMBEDDED VIEW</div></header>
+<div class="toolbar">
+<button class="tool" id="back" title="Back" aria-label="Back" disabled>←</button>
+<button class="tool" id="forward" title="Forward" aria-label="Forward" disabled>→</button>
+<button class="tool" id="reload" title="Reload" aria-label="Reload">↻</button>
+<button class="tool" id="home" title="Home" aria-label="Home">⌂</button>
+<div class="address-wrap"><span class="lock">●</span><input id="address" autocomplete="url" spellcheck="false" placeholder="Search or enter website address" aria-label="Address or search"></div>
+<button class="go" id="go">Go</button>
+<button class="tool" id="bookmark" title="Bookmark this page" aria-label="Bookmark">☆</button>
+</div>
+<div class="tabs" id="tabs"></div>
+<div class="workspace">
+<aside class="sidebar">
+<div class="sidehead"><strong>Browsing history</strong><button class="sideaction" id="clearHistory">Clear</button></div>
+<div id="historyList"><div class="empty">Your visited pages will appear here.</div></div>
+<div class="sidehead" style="margin-top:24px"><strong>Bookmarks</strong></div>
+<div id="bookmarkList"><div class="empty">Your saved pages will appear here.</div></div>
+<div class="empty" style="margin-top:18px">History is stored locally in this browser. Pages opened inside a website may not be individually recorded.</div>
+</aside>
+<section class="viewer">
+<div class="welcome" id="welcome"><div class="welcome-inner">
+<div class="welcome-logo">ebertNet</div><div class="tagline">A DARKER WAY TO EXPLORE</div>
+<p>Browse directly inside this window. Enter a web address or search term above.</p>
+<div class="quicklinks">
+<button class="quick" data-url="https://example.com">Example</button>
+<button class="quick" data-url="https://developer.mozilla.org">MDN Docs</button>
+<button class="quick" data-url="https://www.wikipedia.org">Wikipedia</button>
+</div>
+<p>Some websites prevent being displayed inside another page. If a site refuses to load here, that is the site's embedding policy; ebertNet won't route around it.</p>
+</div></div>
+<iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-same-origin allow-downloads" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
+<div class="blocked" id="blocked"><div><h2>This site won't allow embedded viewing</h2><p>The website's security settings prevent it from appearing inside ebertNet. This browser respects that restriction and does not proxy or rewrite the page.</p><button id="backHome">Return to ebertNet home</button></div></div>
+</section>
+</div>
+<footer class="footer"><span>EBERTNET <b>/</b> IN-PAGE BROWSER</span><span>History records addresses opened from this browser</span></footer>
+</div>
 <script>
-const input=document.getElementById('address'),form=document.getElementById('browseForm'),toast=document.getElementById('toast');
-function normalize(value){let v=value.trim();if(!v)return '';if(!/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(v)){if(v.includes(' ')||!v.includes('.'))return 'https://www.google.com/search?q='+encodeURIComponent(v);v='https://'+v;}try{const u=new URL(v);if(!['http:','https:'].includes(u.protocol))return '';return u.href;}catch{return '';}}
-function browse(value){const url=normalize(value);if(!url){toast.textContent='Enter a valid http:// or https:// address.';toast.style.display='block';return;}window.open(url,'_blank','noopener,noreferrer');}
-form.addEventListener('submit',e=>{e.preventDefault();browse(input.value);});
-document.querySelectorAll('[data-url]').forEach(b=>b.addEventListener('click',()=>browse(b.dataset.url)));
+(()=>{
+const $=id=>document.getElementById(id);
+const frame=$('page'),welcome=$('welcome'),blocked=$('blocked'),address=$('address');
+const STORE='ebertnet-browser-v1';
+let state={tabs:[{id:1,url:'',title:'New tab',entries:[],index:-1}],active:1,nextId:2,history:[],bookmarks:[]};
+try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved&&Array.isArray(saved.tabs)&&saved.tabs.length){state={...state,...saved};}}catch{}
+function save(){try{localStorage.setItem(STORE,JSON.stringify(state));}catch{}}
+function tab(){return state.tabs.find(t=>t.id===state.active)||state.tabs[0]}
+function safeUrl(raw){let s=raw.trim();if(!s)return '';if(/\s/.test(s)||(!s.includes('.')&&!/^https?:\/\//i.test(s)))return 'https://www.google.com/search?q='+encodeURIComponent(s);if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(s))s='https://'+s;try{const u=new URL(s);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}}
+function label(url){try{return new URL(url).hostname.replace(/^www\./,'')}catch{return 'New tab'}}
+function showHome(){frame.style.display='none';blocked.style.display='none';welcome.style.display='flex';address.value='';}
+function renderTabs(){const host=$('tabs');host.innerHTML='';state.tabs.forEach(t=>{const b=document.createElement('button');b.className='tab'+(t.id===state.active?' active':'');b.innerHTML='<span>◉</span><span class="tabname"></span><span class="tabclose" title="Close tab">×</span>';b.querySelector('.tabname').textContent=t.title||'New tab';b.addEventListener('click',()=>activate(t.id));b.querySelector('.tabclose').addEventListener('click',e=>{e.stopPropagation();closeTab(t.id)});host.appendChild(b)});const plus=document.createElement('button');plus.className='newtab';plus.textContent='+';plus.title='New tab';plus.onclick=newTab;host.appendChild(plus)}
+function renderLists(){const h=$('historyList'),b=$('bookmarkList');h.innerHTML='';const entries=state.history.slice().reverse().slice(0,60);if(!entries.length)h.innerHTML='<div class="empty">Your visited pages will appear here.</div>';entries.forEach(item=>{const el=document.createElement('button');el.className='sideitem';const name=document.createElement('span');name.textContent=item.title||label(item.url);const url=document.createElement('span');url.className='url';url.textContent=item.url;el.append(name,url);el.onclick=()=>navigate(item.url,true);h.appendChild(el)});b.innerHTML='';if(!state.bookmarks.length)b.innerHTML='<div class="empty">Your saved pages will appear here.</div>';state.bookmarks.forEach(item=>{const el=document.createElement('button');el.className='sideitem';const name=document.createElement('span');name.textContent=item.title||label(item.url);const url=document.createElement('span');url.className='url';url.textContent=item.url;el.append(name,url);el.onclick=()=>navigate(item.url,true);b.appendChild(el)})}
+function activate(id){state.active=id;const t=tab();renderTabs();if(t.url){address.value=t.url;loadFrame(t.url)}else showHome();updateNav();save()}
+function updateNav(){const t=tab();$('back').disabled=t.index<=0;$('forward').disabled=t.index<0||t.index>=t.entries.length-1}
+function navigate(raw,fromList=false){const url=safeUrl(raw);if(!url){address.focus();return}const t=tab();if(!fromList){t.entries=t.entries.slice(0,t.index+1);t.entries.push(url);t.index=t.entries.length-1}t.url=url;t.title=label(url);address.value=url;state.history.push({url,title:t.title,at:Date.now()});state.history=state.history.slice(-300);loadFrame(url);renderTabs();renderLists();updateNav();save()}
+function loadFrame(url){welcome.style.display='none';blocked.style.display='none';frame.style.display='block';frame.src=url}
+function newTab(){const id=state.nextId++;state.tabs.push({id,url:'',title:'New tab',entries:[],index:-1});state.active=id;renderTabs();showHome();updateNav();save()}
+function closeTab(id){if(state.tabs.length===1){const t=state.tabs[0];t.url='';t.title='New tab';t.entries=[];t.index=-1;activate(t.id);return}const i=state.tabs.findIndex(t=>t.id===id);state.tabs=state.tabs.filter(t=>t.id!==id);if(state.active===id)state.active=state.tabs[Math.max(0,i-1)].id;activate(state.active)}
+$('go').onclick=()=>navigate(address.value);address.addEventListener('keydown',e=>{if(e.key==='Enter')navigate(address.value)});
+$('back').onclick=()=>{const t=tab();if(t.index>0){t.index--;t.url=t.entries[t.index];t.title=label(t.url);address.value=t.url;loadFrame(t.url);renderTabs();updateNav();save()}};
+$('forward').onclick=()=>{const t=tab();if(t.index<t.entries.length-1){t.index++;t.url=t.entries[t.index];t.title=label(t.url);address.value=t.url;loadFrame(t.url);renderTabs();updateNav();save()}};
+$('reload').onclick=()=>{if(tab().url)frame.src=tab().url};
+$('home').onclick=()=>{const t=tab();t.url='';t.title='New tab';t.entries=[];t.index=-1;showHome();renderTabs();updateNav();save()};
+$('backHome').onclick=$('home').onclick;
+$('bookmark').onclick=()=>{const t=tab();if(!t.url)return;const i=state.bookmarks.findIndex(x=>x.url===t.url);if(i>=0)state.bookmarks.splice(i,1);else state.bookmarks.push({url:t.url,title:t.title});renderLists();save();$('bookmark').textContent=i>=0?'☆':'★'};
+$('clearHistory').onclick=()=>{state.history=[];renderLists();save()};
+document.querySelectorAll('[data-url]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.url)));
+frame.addEventListener('load',()=>{blocked.style.display='none';});
+frame.addEventListener('error',()=>{frame.style.display='none';blocked.style.display='flex';});
+renderTabs();renderLists();const active=tab();if(active.url){address.value=active.url;loadFrame(active.url)}else showHome();updateNav();
+})();
 </script>
 </body>
 </html>
