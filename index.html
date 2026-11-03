@@ -277,7 +277,7 @@ async function loadFrame(url,request={}){
      parent.postMessage({type:'ebert-form',url:u.href,method:'POST',body:new URLSearchParams(pairs).toString()},'*');
     }
    },true);
-  })();
+  })();`;
   doc.body.appendChild(bridge);
 
   const html='<!doctype html>'+doc.documentElement.outerHTML;
