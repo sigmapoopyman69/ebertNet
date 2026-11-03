@@ -280,7 +280,7 @@ $('forward').onclick=()=>{const t=tab();if(t.index<t.entries.length-1){t.index++
 $('reload').onclick=()=>{if(tab().url)loadFrame(tab().url)};
 
 window.addEventListener('message',event=>{if(event.source!==frame.contentWindow||!event.data||typeof event.data!=='object')return;if(event.data.type==='ebert-navigate'&&typeof event.data.url==='string'){try{const target=new URL(event.data.url);if(['http:','https:'].includes(target.protocol))navigate(target.href,true)}catch{}}else if(event.data.type==='ebert-form')$('backendStatus').textContent='Form submission is disabled in the isolated preview.'});
-$('home').onclick=()=>{const t=tab();t.url='';t.title='New tab';t.entries=[];t.index=-1;showHome();renderTabs();updateNav();save()};
+$('home').onclick=()=>navigate('https://search.brave.com/',true);
 $('backHome').onclick=$('home').onclick;
 $('settingsToggle').onclick=()=> $('settingsPanel').classList.toggle('open');
 $('closeSettings').onclick=()=> $('settingsPanel').classList.remove('open');
@@ -302,7 +302,7 @@ $('testBackend').onclick=async()=>{
  try{
   status.textContent='Connecting to Wisp server…';
   const client=await getEpoxyClient();
-  status.textContent='Wisp connected. Fetching the allowlisted example.com test page…';
+  status.textContent='Wisp connected. Fetching the example.com connectivity test…';
   const response=await client.fetch('https://example.com/');
   const body=await response.text();
   $('backendResult').textContent=body.slice(0,5000);
