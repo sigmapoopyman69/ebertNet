@@ -102,13 +102,13 @@ function safeUrl(raw){
  try{const u=new URL(s);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}
 }
 function label(url){try{return new URL(url).hostname.replace(/^www\./,'')}catch{return 'New tab'}}
-function showHome(){frame.style.display='none';blocked.style.display='none';welcome.style.display='flex';address.value='';}
+function showHome(){loading.classList.remove('visible');frame.style.display='none';blocked.style.display='none';welcome.style.display='flex';address.value='';}
 function renderTabs(){const host=$('tabs');host.innerHTML='';state.tabs.forEach(t=>{const b=document.createElement('button');b.className='tab'+(t.id===state.active?' active':'');b.innerHTML='<span>◉</span><span class="tabname"></span><span class="tabclose" title="Close tab">×</span>';b.querySelector('.tabname').textContent=t.title||'New tab';b.addEventListener('click',()=>activate(t.id));b.querySelector('.tabclose').addEventListener('click',e=>{e.stopPropagation();closeTab(t.id)});host.appendChild(b)});const plus=document.createElement('button');plus.className='newtab';plus.textContent='+';plus.title='New tab';plus.onclick=newTab;host.appendChild(plus)}
 function renderLists(){}
 function activate(id){state.active=id;const t=tab();renderTabs();if(t.url){address.value=t.url;loadFrame(t.url)}else showHome();updateNav();save()}
 function updateNav(){const t=tab();$('back').disabled=t.index<=0;$('forward').disabled=t.index<0||t.index>=t.entries.length-1}
 function showNavigationError(title,message){
- welcome.style.display='none';frame.style.display='none';blocked.style.display='flex';
+ loading.classList.remove('visible');welcome.style.display='none';frame.style.display='none';blocked.style.display='flex';
  blocked.querySelector('h2').textContent=title;
  blocked.querySelector('p').textContent=message;
  $('backendStatus').textContent=message;
