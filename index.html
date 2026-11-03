@@ -36,7 +36,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
 </div>
 <div class="tabs" id="tabs"></div>
-<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><div class="settings-note">Search powered by <strong>Brave Search</strong></div><div class="settings-note">Connection powered by <strong>Epoxy</strong></div><label class="toggle-label"><input id="enableScripts" type="checkbox" checked disabled> JavaScript enabled (native page scripts)</label><p>Uses Epoxy over Wisp for the initial document request. The original document is then rendered by the browser with native HTML, CSS, JavaScript, and HTML5 media support. The viewer preserves native page scripts, styles, images, SVG, canvas, and HTML5 audio/video. Search is powered by Brave Search. The connection runs through Epoxy.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
+<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><div class="settings-note">Search powered by <strong>Brave Search</strong></div><div class="settings-note">Connection powered by <strong>Epoxy over secure WSS</strong></div><div class="settings-note"><strong>Privacy checks</strong><br>• Browser → gateway: WSS/TLS required<br>• Gateway → websites: HTTPS upgraded and required<br>• Certificate checks: handled by the browser and TLS stack<br>• DNS: resolved by the gateway host; encrypted DNS is not guaranteed<br>• WebRTC: sandbox limits page privileges, but direct embeds may use their own network connections</div><label class="toggle-label"><input id="enableScripts" type="checkbox" checked disabled> JavaScript enabled (native page scripts)</label><p>Uses Epoxy over Wisp for the initial document request. The original document is then rendered by the browser with native HTML, CSS, JavaScript, and HTML5 media support. The viewer preserves native page scripts, styles, images, SVG, canvas, and HTML5 audio/video. Search is powered by Brave Search. The connection runs through Epoxy.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
 
 <section class="viewer">
 <div class="welcome" id="welcome"><div class="welcome-inner">
@@ -99,7 +99,7 @@ function safeUrl(raw){
  let s=raw.trim();if(!s)return '';
  if(!looksLikeAddress(s))return searchUrl(s);
  if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(s))s='https://'+s;
- try{const u=new URL(s);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}
+ try{const u=new URL(s);if(u.protocol==='http:')u.protocol='https:';return u.protocol==='https:'?u.href:''}catch{return ''}
 }
 function label(url){try{return new URL(url).hostname.replace(/^www\./,'')}catch{return 'New tab'}}
 function showHome(){loading.classList.remove('visible');frame.style.display='none';blocked.style.display='none';welcome.style.display='flex';address.value='';}
@@ -154,6 +154,7 @@ function youtubeEmbedUrl(raw){
  }catch{return null}
 }
 async function loadFrame(url,request={}){
+ try{const secureUrl=new URL(url);if(secureUrl.protocol==='http:')secureUrl.protocol='https:';if(secureUrl.protocol!=='https:')throw new Error('Only HTTPS websites are supported for secure browsing.');url=secureUrl.href;address.value=url;}catch(error){showNavigationError('Secure connection required',error?.message||'Use a valid HTTPS address.');return}
  welcome.style.display='none';blocked.style.display='none';frame.style.display='block';loading.classList.add('visible');
  frame.setAttribute('sandbox','allow-forms allow-scripts allow-downloads allow-presentation');
  frame.setAttribute('allow','autoplay; encrypted-media; fullscreen; picture-in-picture');
