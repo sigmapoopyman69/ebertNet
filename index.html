@@ -87,9 +87,27 @@ async function getCurlClient(){
 }
 async function fetchWithCurl(url,options){
  const client=await getCurlClient();
- const headers=Object.entries(options.headers||{}).map(([key,value])=>[key,String(value)]);
- const result=await client.request(new URL(url),options.method||'GET',options.body??null,headers,options.signal);
- return new Response(result.body,{status:result.status,statusText:result.statusText,headers:result.headers});
+ let current=new URL(url);
+ let method=(options.method||'GET').toUpperCase();
+ let body=options.body??null;
+ let headers={...(options.headers||{})};
+ for(let redirects=0;redirects<=10;redirects++){
+  const rawHeaders=Object.entries(headers).map(([key,value])=>[key,String(value)]);
+  const result=await client.request(current,method,body,rawHeaders,options.signal);
+  const response=new Response(result.body,{status:result.status,statusText:result.statusText,headers:result.headers});
+  if(![301,302,303,307,308].includes(response.status))return response;
+  const location=response.headers.get('location');
+  if(!location)throw new Error('YouTube returned HTTP '+response.status+' without a Location header.');
+  if(redirects===10)throw new Error('Too many redirects while loading YouTube.');
+  const next=new URL(location,current);
+  if(next.protocol==='http:')next.protocol='https:';
+  if(next.protocol!=='https:')throw new Error('The redirect points to an unsupported or insecure address.');
+  if([301,302,303].includes(response.status)&&method==='POST'){
+   method='GET';body=null;delete headers['Content-Type'];delete headers['content-type'];
+  }
+  current=next;
+ }
+ throw new Error('Too many redirects while loading YouTube.');
 }
 async function getEpoxyClient(){
  if(epoxyClient)return epoxyClient;
@@ -303,7 +321,7 @@ async function loadFrame(url,request={}){
 
   const html='<!doctype html>'+doc.documentElement.outerHTML;
   frame.srcdoc=html;
-  $('backendStatus').textContent=(isYouTubeHost?'YOUTUBE DOCUMENT VIA EPOXY':'NATIVE HTML VIA EPOXY')+' · HTTP '+response.status+' · '+title+' · rendered by your browser engine · scripts enabled · media requests may use separate connections';
+  $('backendStatus').textContent=(isYouTubeHost?'YOUTUBE DOCUMENT VIA LIBCURL':'NATIVE HTML VIA EPOXY')+' · HTTP '+response.status+' · '+title+' · rendered by your browser engine · scripts enabled · media requests may use separate connections';
  }catch(error){
   frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{background:#100b0f;color:#fff;font:14px system-ui;padding:24px}h2{color:#ff8290}p{color:#cbbdc3;overflow-wrap:anywhere}</style><h2>Unable to load page</h2><p>'+escapeHtml(error?.message||String(error))+'</p>';
   $('backendStatus').textContent='Fetch failed: '+(error?.message||String(error));
