@@ -36,7 +36,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
 </div>
 <div class="tabs" id="tabs"></div>
-<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><div class="settings-note">Search powered by <strong>Brave Search</strong></div><div class="settings-note">Rendering powered by <strong>your actual browser engine</strong>; initial website documents are fetched through <strong>Epoxy over secure WSS</strong>.</div><div class="settings-note"><strong>Privacy checks</strong><br>• Browser → gateway: WSS/TLS required<br>• Gateway → websites: HTTPS upgraded and required<br>• Certificate checks: handled by the browser and TLS stack<br>• DNS: resolved by the gateway host; encrypted DNS is not guaranteed<br>• WebRTC: sandbox limits page privileges, but direct embeds may use their own network connections</div><label class="toggle-label"><input id="enableScripts" type="checkbox" checked disabled> JavaScript enabled (native page scripts)</label><p>Uses Epoxy over Wisp for the initial document request. The original document is then rendered by the browser with native HTML, CSS, JavaScript, and HTML5 media support. The viewer preserves native page scripts, styles, images, SVG, canvas, and HTML5 audio/video. Search is powered by Brave Search. The connection runs through Epoxy.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
+<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><div class="settings-note">Search powered by <strong>Brave Search</strong></div><div class="settings-note">Rendering powered by <strong>your actual browser engine</strong>; initial website documents are fetched through <strong>Epoxy over secure WSS</strong>.</div><div class="settings-note"><strong>Privacy checks</strong><br>• Browser → gateway: WSS/TLS required<br>• Gateway → websites: HTTPS upgraded and required<br>• Certificate checks: handled by the browser and TLS stack<br>• DNS: resolved by the gateway host; encrypted DNS is not guaranteed<br>• WebRTC: sandbox limits page privileges, but direct embeds may use their own network connections</div><label class="toggle-label"><input id="enableScripts" type="checkbox" checked disabled> JavaScript enabled (native page scripts)</label><p>Uses Epoxy over Wisp for the initial document request. The original document is then rendered by the browser with native HTML, CSS, JavaScript, and HTML5 media support. The viewer preserves native page scripts, styles, images, SVG, canvas, and HTML5 audio/video. Search is powered by Brave Search. The connection runs through ebertNet.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
 
 <section class="viewer">
 <div class="welcome" id="welcome"><div class="welcome-inner">
@@ -184,12 +184,12 @@ async function loadFrame(url,request={}){
   const isYouTubeHost=parsed.hostname==='youtube.com'||parsed.hostname.endsWith('.youtube.com')||parsed.hostname==='youtu.be'||parsed.hostname.endsWith('.youtu.be')||parsed.hostname==='youtube-nocookie.com'||parsed.hostname.endsWith('.youtube-nocookie.com');
   if(isYouTubeHost){
    frame.setAttribute('sandbox','allow-forms allow-scripts allow-downloads allow-presentation');
-   $('backendStatus').textContent='Fetching YouTube document through Epoxy…';
+   $('backendStatus').textContent='Fetching YouTube document through ebertNet…';
   }
   if(!['https:','http:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS websites are supported.');
   const method=(request.method||'GET').toUpperCase();
   if(!['GET','POST'].includes(method))throw new Error('This form method is not supported.');
-  $('backendStatus').textContent='Fetching '+parsed.hostname+' through Epoxy…';
+  $('backendStatus').textContent='Fetching '+parsed.hostname+' through ebertNet…';
   const fetchOptions={method,headers:{'Accept':'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8'}};
   if(method==='POST'){
    fetchOptions.headers['Content-Type']='application/x-www-form-urlencoded;charset=UTF-8';
@@ -227,7 +227,7 @@ async function loadFrame(url,request={}){
   // media files into memory. Absolute URLs resolve through the document base.
   doc.querySelectorAll('video,audio').forEach(media=>{
    // Use native browser streaming so media can buffer and issue byte-range
-   // requests instead of downloading the entire file through Epoxy.
+   // requests instead of downloading the entire file through ebertNet.
    media.controls=true;media.preload='metadata';
    if(media.tagName==='VIDEO')media.playsInline=true;
    media.removeAttribute('crossorigin');
@@ -354,7 +354,7 @@ $('testBackend').onclick=async()=>{
   const response=await client.fetch('https://example.com/');
   const body=await response.text();
   $('backendResult').textContent=body.slice(0,5000);
-  status.textContent='SUCCESS · Wisp connected · HTTP '+response.status+' · '+body.length+' characters received through Epoxy';
+  status.textContent='SUCCESS · Wisp connected · HTTP '+response.status+' · '+body.length+' characters received through ebertNet';
  }catch(error){
   status.textContent='Connection/test failed: '+(error?.message||String(error));
   $('backendResult').textContent='Check that the backend is deployed with WebSocket support, uses a valid TLS certificate, the URL is wss:// on an HTTPS page, and the Wisp service is online and reachable. Details are shown above.';
