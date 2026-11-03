@@ -208,6 +208,21 @@ async function loadFrame(url,request={}){
   // YouTube's initial document uses Libcurl over the existing Wisp connection.
   // Redirects are followed there; other websites continue using Epoxy.
   const isYouTubeHost=parsed.hostname==='youtube.com'||parsed.hostname.endsWith('.youtube.com')||parsed.hostname==='youtu.be'||parsed.hostname.endsWith('.youtu.be')||parsed.hostname==='youtube-nocookie.com'||parsed.hostname.endsWith('.youtube-nocookie.com');
+  // Use YouTube's official embedded player for individual videos. This avoids
+  // the incomplete srcdoc/API path for watch pages while keeping arbitrary
+  // websites inside the normal sandbox.
+  const youtubeEmbed=isYouTubeHost?youtubeEmbedUrl(parsed.href):null;
+  if(youtubeEmbed){
+   const player=new URL(youtubeEmbed);
+   player.searchParams.set('hl','en');
+   player.searchParams.set('origin','https://sigmapoopyman69.github.io');
+   frame.removeAttribute('sandbox');
+   frame.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
+   frame.setAttribute('allow','autoplay; encrypted-media; fullscreen; picture-in-picture');
+   frame.src=player.href;
+   $('backendStatus').textContent='YOUTUBE EMBED PLAYER · official YouTube player · '+label(parsed.href);
+   return;
+  }
   if(isYouTubeHost){
    frame.setAttribute('sandbox','allow-forms allow-scripts allow-downloads allow-presentation');
    $('backendStatus').textContent='Fetching YouTube document through ebertNet…';
