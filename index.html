@@ -37,7 +37,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="tool" id="bookmark" title="Bookmark this page" aria-label="Bookmark">☆</button><button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
 </div>
 <div class="tabs" id="tabs"></div>
-<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" placeholder="https://your-backend.example"><p>Connects with the official Epoxy browser client and fetches only the allowlisted example.com test page through your Wisp backend.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
+<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Fetched HTML is shown as text for this test.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
 <aside class="sidebar">
 <div class="sidehead"><strong>Browsing history</strong><button class="sideaction" id="clearHistory">Clear</button></div>
 <div id="historyList"><div class="empty">Your visited pages will appear here.</div></div>
@@ -74,6 +74,22 @@ function tab(){return state.tabs.find(t=>t.id===state.active)||state.tabs[0]}
 function storageGet(key,fallback=''){try{return localStorage.getItem(key)??fallback}catch{return fallback}}
 function storageSet(key,value){try{localStorage.setItem(key,value)}catch{}}
 let searchEngine=storageGet('ebertnet-search-engine','duckduckgo');
+let epoxyClient=null;
+const ALLOWED_HOSTS=new Set(['example.com','developer.mozilla.org']);
+function escapeHtml(value){return String(value).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));}
+async function getEpoxyClient(){
+ if(epoxyClient)return epoxyClient;
+ const u=new URL($('backendUrl').value.trim());
+ if(u.protocol==='https:')u.protocol='wss:';else if(u.protocol==='http:')u.protocol='ws:';
+ if(!['ws:','wss:'].includes(u.protocol))throw new Error('Backend must use ws:// or wss://');
+ const mod=await import('https://esm.sh/@mercuryworkshop/epoxy-tls@2.1.20-1/epoxy-bundled');
+ if(mod.default)await mod.default();
+ const options=new mod.EpoxyClientOptions();
+ options.user_agent=navigator.userAgent;options.wisp_v2=true;options.udp_extension_required=false;
+ epoxyClient=new mod.EpoxyClient(u.href,options);
+ await epoxyClient.replace_stream_provider();
+ return epoxyClient;
+}
 
 function searchUrl(query){const q=encodeURIComponent(query);const engines={duckduckgo:'https://duckduckgo.com/?q='+q,google:'https://www.google.com/search?q='+q,brave:'https://search.brave.com/search?q='+q,bing:'https://www.bing.com/search?q='+q};return engines[searchEngine]||engines.duckduckgo}
 function safeUrl(raw){let s=raw.trim();if(!s)return '';if(/\s/.test(s)||(!s.includes('.')&&!/^https?:\/\//i.test(s)))return searchUrl(s);if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(s))s='https://'+s;try{const u=new URL(s);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}}
@@ -90,6 +106,7 @@ function navigate(raw,fromList=false){
  const url=isSearch?searchUrl(input):safeUrl(input);
  if(!url){address.focus();return}
  const t=tab();
+ if(!isSearch){try{const check=new URL(url);if(!ALLOWED_HOSTS.has(check.hostname)){address.value=input;$('backendStatus').textContent='Blocked: '+check.hostname+' is not in the backend allowlist.';return}}catch{address.focus();return}}
  const searchResultLink=fromList&&/^(https?:\/\/)?(www\.)?(duckduckgo\.com|google\.com|search\.brave\.com|bing\.com)\//i.test(url);
  const openExternal=isSearch||searchResultLink;
  if(!openExternal){
@@ -103,7 +120,22 @@ function navigate(raw,fromList=false){
  state.history.push({url,title:isSearch?'Search: '+input.slice(0,28):label(url),at:Date.now()});state.history=state.history.slice(-300);
  renderTabs();renderLists();updateNav();save()
 }
-function loadFrame(url){welcome.style.display='none';blocked.style.display='none';frame.style.display='block';frame.src=url}
+async function loadFrame(url){
+ welcome.style.display='none';blocked.style.display='none';frame.style.display='block';
+ try{
+  const parsed=new URL(url);
+  if(!ALLOWED_HOSTS.has(parsed.hostname)||!['https:','http:'].includes(parsed.protocol))throw new Error('Only example.com and developer.mozilla.org are enabled in this test.');
+  $('backendStatus').textContent='Fetching '+parsed.hostname+' through Epoxy…';
+  const client=await getEpoxyClient();
+  const response=await client.fetch(parsed.href);
+  const body=await response.text();
+  frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{margin:0;padding:22px;background:#100b0f;color:#eee;font:13px ui-monospace,monospace}h2{font:700 18px system-ui;color:#ff8290}p{color:#bcaeb4;font:12px system-ui}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5}</style><h2>ebertNet · Epoxy response</h2><p>Fetched through Wisp · HTTP '+response.status+' · '+body.length+' characters</p><pre>'+escapeHtml(body.slice(0,100000))+'</pre>';
+  $('backendStatus').textContent='CONNECTED · HTTP '+response.status+' · '+body.length+' characters received through Epoxy';
+ }catch(error){
+  frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{background:#100b0f;color:#fff;font:14px system-ui;padding:24px}h2{color:#ff8290}p{color:#cbbdc3}</style><h2>Epoxy fetch failed</h2><p>'+escapeHtml(error?.message||String(error))+'</p>';
+  $('backendStatus').textContent='Fetch failed: '+(error?.message||String(error));
+ }
+}
 function newTab(){const id=state.nextId++;state.tabs.push({id,url:'',title:'New tab',entries:[],index:-1});state.active=id;renderTabs();showHome();updateNav();save()}
 function closeTab(id){if(state.tabs.length===1){const t=state.tabs[0];t.url='';t.title='New tab';t.entries=[];t.index=-1;activate(t.id);return}const i=state.tabs.findIndex(t=>t.id===id);state.tabs=state.tabs.filter(t=>t.id!==id);if(state.active===id)state.active=state.tabs[Math.max(0,i-1)].id;activate(state.active)}
 $('go').onclick=()=>navigate(address.value);address.addEventListener('keydown',e=>{if(e.key==='Enter')navigate(address.value)});
@@ -120,6 +152,7 @@ $('searchEngine').value=searchEngine;
 $('searchEngine').onchange=()=>{searchEngine=$('searchEngine').value;storageSet('ebertnet-search-engine',searchEngine)};
 $('testBackend').onclick=async()=>{
  const raw=$('backendUrl').value.trim(),status=$('backendStatus');
+ epoxyClient=null;
  if(!raw){status.textContent='Enter your backend WebSocket address first.';return}
  let wispUrl;
  try{
@@ -132,15 +165,9 @@ $('testBackend').onclick=async()=>{
  status.textContent='Loading Epoxy client…';
  $('backendResult').textContent='';
  try{
-  const mod=await import('https://esm.sh/@mercuryworkshop/epoxy-tls@2.1.20-1/epoxy-bundled');
-  if(mod.default)await mod.default();
-  const options=new mod.EpoxyClientOptions();
-  options.user_agent=navigator.userAgent;
-  options.wisp_v2=true;
-  options.udp_extension_required=false;
-  const client=new mod.EpoxyClient(wispUrl,options);
+  $('backendUrl').value=wispUrl;
   status.textContent='Connecting to Wisp server…';
-  await client.replace_stream_provider();
+  const client=await getEpoxyClient();
   status.textContent='Wisp connected. Fetching the allowlisted example.com test page…';
   const response=await client.fetch('https://example.com/');
   const body=await response.text();
@@ -154,6 +181,8 @@ $('testBackend').onclick=async()=>{
 document.querySelectorAll('[data-url]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.url)));
 frame.addEventListener('load',()=>{blocked.style.display='none';});
 frame.addEventListener('error',()=>{frame.style.display='none';blocked.style.display='flex';});
+$('backendUrl').value=storageGet('ebertnet-wisp-url','wss://ebertnet.wispbyte.app');
+$('backendUrl').addEventListener('change',()=>{epoxyClient=null;storageSet('ebertnet-wisp-url',$('backendUrl').value.trim())});
 renderTabs();renderLists();const active=tab();if(active.url){address.value=active.url;loadFrame(active.url)}else showHome();updateNav();
 })();
 </script>
