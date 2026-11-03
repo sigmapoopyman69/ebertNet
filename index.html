@@ -196,9 +196,17 @@ async function loadFrame(url,request={}){
  try{
   const parsed=new URL(url);
   if(parsed.protocol!=='https:')throw new Error('Secure browsing requires HTTPS.');
-  // YouTube now follows the same Epoxy document-fetch path as other sites.
-  // The host browser still parses and renders the returned HTML; this first
-  // test does not guarantee that every YouTube API/media request is proxied.
+  const isGoogleHost=parsed.hostname==='google.com'||parsed.hostname.endsWith('.google.com')||parsed.hostname==='google.ro'||parsed.hostname.endsWith('.google.ro');
+  if(isGoogleHost){
+   // Prefer Google's English interface and US regional defaults even when
+   // the Wisp server is located in another country.
+   parsed.searchParams.set('hl','en');
+   parsed.searchParams.set('gl','us');
+   url=parsed.href;
+   address.value=url;
+  }
+  // YouTube's initial document uses Libcurl over the existing Wisp connection.
+  // Redirects are followed there; other websites continue using Epoxy.
   const isYouTubeHost=parsed.hostname==='youtube.com'||parsed.hostname.endsWith('.youtube.com')||parsed.hostname==='youtu.be'||parsed.hostname.endsWith('.youtu.be')||parsed.hostname==='youtube-nocookie.com'||parsed.hostname.endsWith('.youtube-nocookie.com');
   if(isYouTubeHost){
    frame.setAttribute('sandbox','allow-forms allow-scripts allow-downloads allow-presentation');
@@ -208,7 +216,10 @@ async function loadFrame(url,request={}){
   const method=(request.method||'GET').toUpperCase();
   if(!['GET','POST'].includes(method))throw new Error('This form method is not supported.');
   $('backendStatus').textContent='Fetching '+parsed.hostname+' through ebertNet…';
-  const fetchOptions={method,headers:{'Accept':'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8'}};
+  const fetchOptions={method,headers:{
+   'Accept':'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8',
+   'Accept-Language':'en-US,en;q=0.9'
+  }};
   if(method==='POST'){
    fetchOptions.headers['Content-Type']='application/x-www-form-urlencoded;charset=UTF-8';
    fetchOptions.body=String(request.body||'');
