@@ -50,7 +50,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 </div>
 <p>Native HTML rendering preserves page markup, CSS, scripts, and HTML5 media on enabled hosts.</p>
 </div></div>
-<iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-downloads allow-presentation" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
+<iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-downloads allow-presentation" allow="autoplay; fullscreen; picture-in-picture" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
 <div class="blocked" id="blocked"><div><h2>Page rendering is not available yet</h2><p>This address could not be loaded. Check the URL and backend connection.</p><button id="backHome">Return to ebertNet home</button></div></div>
 </section>
 </div>
@@ -186,6 +186,42 @@ async function loadFrame(url){
     link.replaceWith(style);
    }catch{}
   }
+  // Proxy common image assets through Epoxy so captcha tiles and remote
+  // thumbnails do not depend on direct cross-origin image requests.
+  const imageNodes=Array.from(doc.querySelectorAll('img[src], img[srcset]')).slice(0,30);
+  for(const img of imageNodes){
+   try{
+    let source=img.getAttribute('src');
+    if(!source && img.getAttribute('srcset'))source=img.getAttribute('srcset').split(',')[0].trim().split(/\s+/)[0];
+    if(!source)continue;
+    const imageUrl=new URL(source,parsed.href);
+    if(!['http:','https:'].includes(imageUrl.protocol))continue;
+    img.src=imageUrl.href;
+    img.loading='eager';
+    img.removeAttribute('crossorigin');
+    const imageResponse=await client.fetch(imageUrl.href,{headers:{'Accept':'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'}});
+    if(!imageResponse.ok)continue;
+    const imageBlob=await imageResponse.blob();
+    if(imageBlob.size>3*1024*1024)continue;
+    const mime=imageBlob.type||'application/octet-stream';
+    if(!mime.startsWith('image/'))continue;
+    const bytes=new Uint8Array(await imageBlob.arrayBuffer());
+    let binary='';
+    for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+    img.src='data:'+mime+';base64,'+btoa(binary);
+   }catch{}
+  }
+
+  // Keep native streaming for audio/video rather than downloading entire
+  // media files into memory. Absolute URLs resolve through the document base.
+  doc.querySelectorAll('video,audio').forEach(media=>{
+   media.controls=true;
+   media.removeAttribute('crossorigin');
+   if(media.hasAttribute('poster')){try{media.poster=new URL(media.getAttribute('poster'),parsed.href).href}catch{}}
+  });
+  doc.querySelectorAll('video source,audio source').forEach(source=>{
+   try{source.src=new URL(source.getAttribute('src'),parsed.href).href}catch{}
+  });
   doc.querySelectorAll('base').forEach(node=>node.remove());
   const base=doc.createElement('base');
   base.href=parsed.href;
