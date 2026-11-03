@@ -37,7 +37,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
 </div>
 <div class="tabs" id="tabs"></div>
-<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Stage 3 improves address detection, direct navigation, and clear blocked-site errors. Only explicitly allowlisted hosts can load; scripts and active embeds remain disabled.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
+<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><label class="toggle-label"><input id="enableScripts" type="checkbox"> Enable JavaScript for this page (experimental)</label><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Stage 3 improves address detection, direct navigation, and clear blocked-site errors. Only explicitly allowlisted hosts can load; scripts and active embeds remain disabled.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
 
 <section class="viewer">
 <div class="welcome" id="welcome"><div class="welcome-inner">
@@ -50,7 +50,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 </div>
 <p>Stage 2 supports sanitized CSS and images on the two enabled demo hosts. Scripts and active embeds remain disabled.</p>
 </div></div>
-<iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-same-origin allow-downloads" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
+<iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-downloads allow-presentation" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
 <div class="blocked" id="blocked"><div><h2>Page rendering is not available yet</h2><p>This site is not currently enabled in the ebertNet backend allowlist. Add its hostname to both allowlists to browse it.</p><button id="backHome">Return to ebertNet home</button></div></div>
 </section>
 </div>
@@ -69,6 +69,7 @@ function storageGet(key,fallback=''){try{return localStorage.getItem(key)??fallb
 function storageSet(key,value){try{localStorage.setItem(key,value)}catch{}}
 let searchEngine=storageGet('ebertnet-search-engine','duckduckgo');
 let epoxyClient=null;
+let currentPageScriptsEnabled=false;
 const ALLOWED_HOSTS=new Set(['example.com','developer.mozilla.org','youtube.com','www.youtube.com','m.youtube.com','duckduckgo.com','www.duckduckgo.com']);
 function escapeHtml(value){return String(value).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));}
 async function getEpoxyClient(){
@@ -141,6 +142,7 @@ async function loadFrame(url){
  welcome.style.display='none';blocked.style.display='none';frame.style.display='block';
  try{
   const parsed=new URL(url);
+  currentPageScriptsEnabled=$('enableScripts').checked;
   if(!ALLOWED_HOSTS.has(parsed.hostname)||!['https:','http:'].includes(parsed.protocol))throw new Error('Only example.com and developer.mozilla.org are enabled in this test.');
   $('backendStatus').textContent='Fetching '+parsed.hostname+' through Epoxy…';
   const client=await getEpoxyClient();
@@ -158,6 +160,26 @@ async function loadFrame(url){
    .replace(/-moz-binding\s*:[^;]+;?/gi,'')
    .replace(/javascript\s*:/gi,'');
   const safeDoc=document.implementation.createHTMLDocument(pageTitle);
+  const scriptNodes=currentPageScriptsEnabled?Array.from(parsedDoc.querySelectorAll('script')).slice(0,12):[];
+  const scriptPayloads=[];
+  if(currentPageScriptsEnabled){
+   for(const node of scriptNodes){
+    const type=(node.getAttribute('type')||'').trim().toLowerCase();
+    if(type && !['text/javascript','application/javascript','text/ecmascript','application/ecmascript'].includes(type))continue;
+    let code=node.textContent||'';
+    const src=node.getAttribute('src');
+    if(src){
+     try{
+      const scriptUrl=new URL(src,parsed.href);
+      if(!ALLOWED_HOSTS.has(scriptUrl.hostname)||!['http:','https:'].includes(scriptUrl.protocol))continue;
+      const scriptResponse=await client.fetch(scriptUrl.href);
+      if(!scriptResponse.ok)continue;
+      code=(await scriptResponse.text()).slice(0,350000);
+     }catch{continue}
+    }
+    if(code && code.length<=350000)scriptPayloads.push(code.replace(/<\\/script/gi,'<\\\\/script'));
+   }
+  }
   const safeHead=safeDoc.head;
   const styleBlocks=Array.from(parsedDoc.querySelectorAll('style')).slice(0,12);
   styleBlocks.forEach(node=>{const st=safeDoc.createElement('style');st.textContent=cleanCss(node.textContent);safeHead.appendChild(st)});
@@ -173,8 +195,21 @@ async function loadFrame(url){
     const st=safeDoc.createElement('style');st.textContent=cleanCss(cssText);safeHead.appendChild(st);cssCount++;
    }catch{}
   }
-  const allowedTags=new Set(['MAIN','ARTICLE','SECTION','HEADER','FOOTER','NAV','DIV','SPAN','P','H1','H2','H3','H4','H5','H6','UL','OL','LI','BLOCKQUOTE','PRE','CODE','STRONG','B','EM','I','SMALL','BR','HR','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','DL','DT','DD','FIGURE','FIGCAPTION','PICTURE','IMG','A','TIME','ADDRESS','DETAILS','SUMMARY','MARK','SUB','SUP']);
+  const allowedTags=new Set(['MAIN','ARTICLE','SECTION','HEADER','FOOTER','NAV','DIV','SPAN','P','H1','H2','H3','H4','H5','H6','UL','OL','LI','BLOCKQUOTE','PRE','CODE','STRONG','B','EM','I','SMALL','BR','HR','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','DL','DT','DD','FIGURE','FIGCAPTION','PICTURE','IMG','A','TIME','ADDRESS','DETAILS','SUMMARY','MARK','SUB','SUP','VIDEO','AUDIO','SOURCE','TRACK','BUTTON','FORM','LABEL','SELECT','OPTION','TEXTAREA']);
   const allowedStyle=/^(color|background-color|font-family|font-size|font-weight|font-style|line-height|text-align|text-decoration|white-space|display|visibility|opacity|margin|margin-top|margin-right|margin-bottom|margin-left|padding|padding-top|padding-right|padding-bottom|padding-left|border|border-color|border-width|border-style|border-radius|max-width|min-width|width|height|max-height|min-height|list-style-type|vertical-align|object-fit|gap|grid-template-columns|flex|flex-direction|align-items|justify-content)$/i;
+  async function fetchMedia(src){
+   try{
+    const asset=new URL(src,parsed.href);
+    if(!ALLOWED_HOSTS.has(asset.hostname)||!['http:','https:'].includes(asset.protocol))return '';
+    const res=await client.fetch(asset.href);if(!res.ok)return '';
+    const type=(res.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
+    if(!/^(video\\/(mp4|webm|ogg)|audio\\/(mpeg|mp3|mp4|ogg|wav|webm|aac))$/.test(type))return '';
+    const buffer=await res.arrayBuffer();if(buffer.byteLength>20000000)return '';
+    const bytes=new Uint8Array(buffer);let binary='';
+    for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
+    return 'data:'+type+';base64,'+btoa(binary);
+   }catch{return ''}
+  }
   async function fetchImage(src){
    try{
     const asset=new URL(src,parsed.href);
@@ -192,7 +227,23 @@ async function loadFrame(url){
    if(node.nodeType===Node.TEXT_NODE)return safeDoc.createTextNode(node.nodeValue||'');
    if(node.nodeType!==Node.ELEMENT_NODE)return null;
    const tag=node.tagName;
-   if(['SCRIPT','NOSCRIPT','IFRAME','OBJECT','EMBED','SVG','FORM','INPUT','BUTTON','VIDEO','AUDIO','CANVAS','TEMPLATE','BASE','META','LINK'].includes(tag))return null;
+   if(['SCRIPT','NOSCRIPT','OBJECT','EMBED','SVG','INPUT','CANVAS','TEMPLATE','BASE','META','LINK'].includes(tag))return null;
+   if(tag==='VIDEO'||tag==='AUDIO'){
+    const media=safeDoc.createElement(tag.toLowerCase());
+    media.controls=true;media.preload='metadata';media.style.maxWidth='100%';
+    const direct=node.getAttribute('src');
+    const sourceNodes=Array.from(node.querySelectorAll('source')).slice(0,3);
+    const candidates=[...(direct?[direct]:[]),...sourceNodes.map(x=>x.getAttribute('src')).filter(Boolean)];
+    for(const candidate of candidates){const data=await fetchMedia(candidate);if(data){media.src=data;break}}
+    if(!media.src)return null;
+    return media;
+   }
+   if(tag==='IFRAME'){
+    const src=node.getAttribute('src');if(!src)return null;
+    try{const target=new URL(src,parsed.href);if(!ALLOWED_HOSTS.has(target.hostname)||!['http:','https:'].includes(target.protocol))return null;
+     const embedded=safeDoc.createElement('iframe');embedded.src=target.href;embedded.title=node.getAttribute('title')||'Embedded content';embedded.loading='lazy';embedded.referrerPolicy='no-referrer';embedded.sandbox='allow-scripts allow-presentation';embedded.style.width='100%';embedded.style.minHeight='240px';embedded.style.border='0';return embedded;
+    }catch{return null}
+   }
    if(tag==='IMG'){
     if(imageCount>=15)return null;
     const src=node.getAttribute('src')||node.getAttribute('data-src');
@@ -206,6 +257,8 @@ async function loadFrame(url){
    }
    const outputTag=allowedTags.has(tag)?tag:'div';
    const el=safeDoc.createElement(outputTag);
+   if(tag==='FORM'){el.addEventListener;el.setAttribute('data-ebert-form','1');el.setAttribute('onsubmit','return false');}
+   if(tag==='BUTTON'){el.setAttribute('type','button');}
    if(tag==='A'){
     const href=node.getAttribute('href');
     if(href){try{const target=new URL(href,parsed.href);if(['http:','https:'].includes(target.protocol)&&ALLOWED_HOSTS.has(target.hostname)){el.setAttribute('data-ebert-href',target.href);el.style.color='#1769aa';el.style.textDecoration='underline';}else el.title='Link not available: outside the demo allowlist';}catch{}}
@@ -226,8 +279,11 @@ async function loadFrame(url){
   let safeContent=safeDoc.body.innerHTML;
   if(!safeContent.trim())safeContent='<p>This page did not contain readable HTML text.</p>';
   const baseCss='*{box-sizing:border-box}html{background:#fff}body{margin:0;padding:clamp(18px,3.5vw,48px);max-width:1200px;margin-inline:auto;background:#fff;color:#202124;font:16px/1.6 Arial,sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto;object-fit:contain}a{cursor:pointer}table{border-collapse:collapse;max-width:100%;display:block;overflow:auto}td,th{border:1px solid #ddd;padding:8px;text-align:left}pre{white-space:pre-wrap;overflow:auto;background:#f4f4f4;padding:12px;border-radius:6px}';
-  frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(pageTitle)+'</title><style>'+baseCss+'</style>'+safeHead.innerHTML+'</head><body>'+safeContent+'</body></html>';
-  $('backendStatus').textContent='STAGE 2 · HTTP '+response.status+' · '+pageTitle+' · '+cssCount+' stylesheets · '+imageCount+' images';
+  const csp='<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\' data:; img-src data: blob:; media-src data: blob:; font-src data:; connect-src \'none\'; frame-src https:; object-src \'none\'; form-action \'none\'; base-uri \'none\'>';
+  const scripts=scriptPayloads.map(code=>'<script>'+code+'</scr'+'ipt>').join('');
+  const bridge='<script>document.addEventListener(\'click\',function(e){var a=e.target.closest(\'a[href]\');if(a){var u=new URL(a.href,location.href);if(u.protocol===\'https:\'||u.protocol===\'http:\'){e.preventDefault();parent.postMessage({type:\'ebert-navigate\',url:u.href},\'*\')}}});document.addEventListener(\'submit\',function(e){e.preventDefault();parent.postMessage({type:\'ebert-form\'},\'*\')});</scr'+'ipt>';
+  frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(pageTitle)+'</title>'+csp+'<style>'+baseCss+'</style>'+safeHead.innerHTML+'</head><body>'+safeContent+bridge+scripts+'</body></html>';
+  $('backendStatus').textContent='STAGE 4 · HTTP '+response.status+' · '+pageTitle+' · '+cssCount+' stylesheets · '+imageCount+' images · '+scriptPayloads.length+' scripts · '+(currentPageScriptsEnabled?'JavaScript ON':'JavaScript OFF');
  }catch(error){
   frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{background:#100b0f;color:#fff;font:14px system-ui;padding:24px}h2{color:#ff8290}p{color:#cbbdc3}</style><h2>Epoxy fetch failed</h2><p>'+escapeHtml(error?.message||String(error))+'</p>';
   $('backendStatus').textContent='Fetch failed: '+(error?.message||String(error));
@@ -239,6 +295,9 @@ $('go').onclick=()=>navigate(address.value);address.addEventListener('keydown',e
 $('back').onclick=()=>{const t=tab();if(t.index>0){t.index--;t.url=t.entries[t.index];t.title=label(t.url);address.value=t.url;loadFrame(t.url);renderTabs();updateNav();save()}};
 $('forward').onclick=()=>{const t=tab();if(t.index<t.entries.length-1){t.index++;t.url=t.entries[t.index];t.title=label(t.url);address.value=t.url;loadFrame(t.url);renderTabs();updateNav();save()}};
 $('reload').onclick=()=>{if(tab().url)loadFrame(tab().url)};
+$('enableScripts').checked=storageGet('ebertnet-js-enabled','false')==='true';
+$('enableScripts').addEventListener('change',()=>{storageSet('ebertnet-js-enabled',$('enableScripts').checked?'true':'false');if(tab().url)loadFrame(tab().url)});
+window.addEventListener('message',event=>{if(event.source!==frame.contentWindow||!event.data||typeof event.data!=='object')return;if(event.data.type==='ebert-navigate'&&typeof event.data.url==='string'){try{const target=new URL(event.data.url);if(ALLOWED_HOSTS.has(target.hostname)&&['http:','https:'].includes(target.protocol))navigate(target.href,true)}catch{}}else if(event.data.type==='ebert-form')$('backendStatus').textContent='Form submission is disabled in the isolated preview.'});
 $('home').onclick=()=>{const t=tab();t.url='';t.title='New tab';t.entries=[];t.index=-1;showHome();renderTabs();updateNav();save()};
 $('backHome').onclick=$('home').onclick;
 $('settingsToggle').onclick=()=> $('settingsPanel').classList.toggle('open');
