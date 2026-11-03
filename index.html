@@ -164,6 +164,29 @@ async function loadFrame(url){
   // the original markup, CSS, script tags, forms, SVG, canvas and media.
   const doc=new DOMParser().parseFromString(body,'text/html');
   const title=(doc.title||parsed.hostname).slice(0,120);
+
+  // Fetch linked stylesheets through Epoxy and inline them. A srcdoc document
+  // has an opaque origin, and direct stylesheet requests can be blocked or
+  // lose their original stylesheet-relative URL base.
+  const stylesheetLinks=Array.from(doc.querySelectorAll('link[rel~="stylesheet"][href]'));
+  for(const link of stylesheetLinks){
+   try{
+    const cssUrl=new URL(link.getAttribute('href'),parsed.href);
+    if(!['http:','https:'].includes(cssUrl.protocol))continue;
+    const cssResponse=await client.fetch(cssUrl.href,{headers:{'Accept':'text/css,*/*;q=0.1'}});
+    if(!cssResponse.ok)continue;
+    const cssType=(cssResponse.headers.get('content-type')||'').toLowerCase();
+    if(cssType && !cssType.includes('text/css'))continue;
+    let css=await cssResponse.text();
+    css=css.replace(/url\\(\\s*(['"]?)(?!data:|blob:|https?:|\\/\\/|#)([^'")]+)\\1\\s*\\)/gi,(match,quote,path)=>{
+     try{return 'url("'+new URL(path.trim(),cssUrl.href).href.replace(/"/g,'%22')+'")'}catch{return match}
+    });
+    const style=doc.createElement('style');
+    if(link.media)style.media=link.media;
+    style.textContent=css;
+    link.replaceWith(style);
+   }catch{}
+  }
   doc.querySelectorAll('base').forEach(node=>node.remove());
   const base=doc.createElement('base');
   base.href=parsed.href;
