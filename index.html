@@ -11,22 +11,22 @@
 body{overflow:hidden}.scene{position:fixed;inset:0;background:#090709 url("./moon.jpg") center/cover no-repeat;opacity:.34;pointer-events:none}.scene:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#09070977,#090709eF)}
 button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display:flex;flex-direction:column;min-height:0}
 .topbar{height:58px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 19px;border-bottom:1px solid var(--line);background:#0c090ddd;backdrop-filter:blur(18px)}
-.brand{font-size:21px;font-weight:900;letter-spacing:-.07em}.brand span{color:var(--red)}.status{font-size:10px;letter-spacing:.12em;color:#c7b9bf;display:flex;align-items:center;gap:8px}.dot{width:7px;height:7px;border-radius:50%;background:#57c98b;box-shadow:0 0 10px #57c98b}
+.brand{font-size:21px;font-weight:900;letter-spacing:-.07em}.brand span{color:var(--red)}
 .toolbar{display:flex;align-items:center;gap:7px;padding:10px 14px;background:#120d11eF;border-bottom:1px solid var(--line);flex:none}
 .tool{width:35px;height:35px;border:1px solid var(--line);border-radius:10px;background:#21171d;color:#eee;cursor:pointer}.tool:hover,.tool.active{border-color:#ff536877;background:#35131d}.tool:disabled{opacity:.35;cursor:not-allowed}
 .address-wrap{display:flex;align-items:center;gap:8px;flex:1;min-width:0;height:37px;padding:0 11px;border:1px solid #ffffff20;border-radius:11px;background:#080709}.lock{color:#72d49b;font-size:13px}#address{border:0;outline:0;background:transparent;color:#fff;min-width:0;width:100%;font-size:13px}#address::placeholder{color:#8f8288}.settings-panel{display:none;position:absolute;z-index:5;right:14px;top:105px;width:min(360px,calc(100vw - 28px));padding:16px;border:1px solid var(--line);border-radius:14px;background:#171016;box-shadow:0 18px 55px #000b}.settings-panel.open{display:block}.settings-panel h3{margin:0 0 12px;font-size:14px}.settings-panel label{display:block;margin:12px 0 6px;color:#cbbdc3;font-size:11px}.settings-panel select,.settings-panel input{width:100%;padding:9px;border:1px solid #ffffff22;border-radius:8px;background:#090709;color:#fff}.settings-panel p{font-size:11px;line-height:1.6;color:#a99ba1}.settings-row{display:flex;gap:8px}.settings-row button{padding:8px 11px;border:1px solid #ffffff22;border-radius:8px;background:#28151e;color:white;cursor:pointer}.settings-status{font-size:11px;color:#cbbdc3;min-height:18px;margin-top:8px}.go{height:35px;padding:0 17px;border:0;border-radius:10px;background:linear-gradient(135deg,#ff5368,#b30d2b);color:#fff;font-weight:750;cursor:pointer}
 .tabs{display:flex;align-items:end;gap:5px;padding:7px 12px 0;background:#0d090c;border-bottom:1px solid var(--line);overflow-x:auto;flex:none}.tab{max-width:210px;min-width:125px;display:flex;align-items:center;gap:8px;padding:9px 10px;border:1px solid transparent;border-bottom:0;border-radius:9px 9px 0 0;background:#171116;color:#cbbfc4;font-size:11px;cursor:pointer}.tab.active{background:#24171e;border-color:var(--line);color:white}.tabname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}.tabclose{color:#a99aa1;font-size:15px}.newtab{border:0;background:transparent;color:#ff8290;font-size:20px;padding:4px 10px;cursor:pointer}
-.workspace{display:flex;flex:1;min-height:0;position:relative}.sidebar{width:250px;flex:none;background:#100b0fef;border-right:1px solid var(--line);padding:14px;overflow:auto}.sidehead{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}.sidehead strong{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#d9cbd0}.sideaction{border:0;background:transparent;color:#ff8290;cursor:pointer;font-size:11px}.sideitem{display:block;width:100%;text-align:left;padding:10px;border:1px solid transparent;border-radius:9px;background:transparent;color:#d8cbd0;cursor:pointer;margin:3px 0}.sideitem:hover{background:#24151d;border-color:#ffffff12}.sideitem .url{display:block;font-size:10px;color:#93858b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:4px}.empty{color:#897b82;font-size:11px;line-height:1.6;padding:8px}
+.workspace{display:flex;flex:1;min-height:0;position:relative}.sidehead{display:flex;align-items:center;justify-content:space-between;margin:4px 0 12px}.sidehead strong{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#d9cbd0}.sideaction{border:0;background:transparent;color:#ff8290;cursor:pointer;font-size:11px}.sideitem{display:block;width:100%;text-align:left;padding:10px;border:1px solid transparent;border-radius:9px;background:transparent;color:#d8cbd0;cursor:pointer;margin:3px 0}.sideitem:hover{background:#24151d;border-color:#ffffff12}.sideitem .url{display:block;font-size:10px;color:#93858b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:4px}.empty{color:#897b82;font-size:11px;line-height:1.6;padding:8px}
 .viewer{flex:1;min-width:0;min-height:0;position:relative;background:#fff}.viewer iframe{width:100%;height:100%;border:0;background:#fff}.welcome{position:absolute;inset:0;overflow:auto;display:flex;align-items:center;justify-content:center;padding:30px;background:radial-gradient(ellipse at 50% 30%,#34121e,#130d12 65%,#090709);color:#fff}.welcome-inner{width:min(650px,100%);text-align:center}.welcome-logo{font-size:clamp(54px,9vw,90px);font-weight:950;letter-spacing:-.1em;background:linear-gradient(140deg,#fff,#ff9eaa 65%,#ff334d);-webkit-background-clip:text;background-clip:text;color:transparent}.tagline{font-size:10px;letter-spacing:.3em;color:#d7bfc6;margin:9px 0 28px}.welcome p{font-size:12px;line-height:1.7;color:#bcaeb4}.quicklinks{display:flex;flex-wrap:wrap;justify-content:center;gap:9px;margin:20px 0}.quick{border:1px solid #ffffff20;background:#21151c;color:#f5e9ed;border-radius:10px;padding:10px 14px;font-size:11px;cursor:pointer}.quick:hover{border-color:#ff5368}
 .blocked{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:#100b0f;color:#fff;text-align:center}.blocked div{max-width:480px}.blocked h2{font-size:20px}.blocked p{color:#bcaeb4;font-size:12px;line-height:1.7}.blocked button{border:1px solid #ffffff22;background:#26151d;color:#fff;padding:10px 14px;border-radius:9px;cursor:pointer}
 .footer{flex:none;padding:7px 14px;border-top:1px solid var(--line);background:#0d090c;color:#94868d;font-size:10px;display:flex;justify-content:space-between;gap:12px}.footer b{color:#e6d8de;font-weight:600}
-@media(max-width:760px){.sidebar{display:none}.status{display:none}.toolbar{padding:8px;gap:5px}.tool{width:32px;height:34px}.go{padding:0 12px}.topbar{height:50px}.footer{font-size:9px}}
+@media(max-width:760px){.toolbar{padding:8px;gap:5px}.tool{width:32px;height:34px}.go{padding:0 12px}.topbar{height:50px}.footer{font-size:9px}}
 </style>
 </head>
 <body>
 <div class="scene" aria-hidden="true"></div>
 <div class="app">
-<header class="topbar"><div class="brand">ebert<span>Net</span></div><div class="status"><i class="dot"></i> EBERTNET · BROWSER PROTOTYPE</div></header>
+<header class="topbar"><div class="brand">ebert<span>Net</span></div></header>
 <div class="toolbar">
 <button class="tool" id="back" title="Back" aria-label="Back" disabled>←</button>
 <button class="tool" id="forward" title="Forward" aria-label="Forward" disabled>→</button>
@@ -34,17 +34,11 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="tool" id="home" title="Home" aria-label="Home">⌂</button>
 <div class="address-wrap"><span class="lock">●</span><input id="address" autocomplete="url" spellcheck="false" placeholder="Search or enter website address" aria-label="Address or search"></div>
 <button class="go" id="go">Go</button>
-<button class="tool" id="bookmark" title="Bookmark this page" aria-label="Bookmark">☆</button><button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
+<button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
 </div>
 <div class="tabs" id="tabs"></div>
-<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Fetched HTML is shown as text for this test.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
-<aside class="sidebar">
-<div class="sidehead"><strong>Browsing history</strong><button class="sideaction" id="clearHistory">Clear</button></div>
-<div id="historyList"><div class="empty">Your visited pages will appear here.</div></div>
-<div class="sidehead" style="margin-top:24px"><strong>Bookmarks</strong></div>
-<div id="bookmarkList"><div class="empty">Your saved pages will appear here.</div></div>
-<div class="empty" style="margin-top:18px">History is stored locally in this browser. Pages opened inside a website may not be individually recorded.</div>
-</aside>
+<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Stage 1 renders safe, readable HTML content; scripts and external assets are not run.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
+
 <section class="viewer">
 <div class="welcome" id="welcome"><div class="welcome-inner">
 <div class="welcome-logo">ebertNet</div><div class="tagline">A DARKER WAY TO EXPLORE</div>
@@ -54,7 +48,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="quick" data-url="https://developer.mozilla.org">MDN Docs</button>
 <button class="quick" data-url="https://www.wikipedia.org">Wikipedia</button>
 </div>
-<p>Some websites prevent being displayed inside another page. If a site refuses to load here, that is the site's embedding policy; ebertNet won't route around it.</p>
+<p>Stage 1 supports readable page content on the two enabled demo hosts. Scripts, images, stylesheets, and interactive embeds are not loaded yet.</p>
 </div></div>
 <iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-same-origin allow-downloads" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
 <div class="blocked" id="blocked"><div><h2>Page rendering is not available yet</h2><p>The current prototype still uses a basic page container. The next browser-engine milestone is rendering fetched page content through the ebertNet backend.</p><button id="backHome">Return to ebertNet home</button></div></div>
@@ -96,7 +90,7 @@ function safeUrl(raw){let s=raw.trim();if(!s)return '';if(/\s/.test(s)||(!s.incl
 function label(url){try{return new URL(url).hostname.replace(/^www\./,'')}catch{return 'New tab'}}
 function showHome(){frame.style.display='none';blocked.style.display='none';welcome.style.display='flex';address.value='';}
 function renderTabs(){const host=$('tabs');host.innerHTML='';state.tabs.forEach(t=>{const b=document.createElement('button');b.className='tab'+(t.id===state.active?' active':'');b.innerHTML='<span>◉</span><span class="tabname"></span><span class="tabclose" title="Close tab">×</span>';b.querySelector('.tabname').textContent=t.title||'New tab';b.addEventListener('click',()=>activate(t.id));b.querySelector('.tabclose').addEventListener('click',e=>{e.stopPropagation();closeTab(t.id)});host.appendChild(b)});const plus=document.createElement('button');plus.className='newtab';plus.textContent='+';plus.title='New tab';plus.onclick=newTab;host.appendChild(plus)}
-function renderLists(){const h=$('historyList'),b=$('bookmarkList');h.innerHTML='';const entries=state.history.slice().reverse().slice(0,60);if(!entries.length)h.innerHTML='<div class="empty">Your visited pages will appear here.</div>';entries.forEach(item=>{const el=document.createElement('button');el.className='sideitem';const name=document.createElement('span');name.textContent=item.title||label(item.url);const url=document.createElement('span');url.className='url';url.textContent=item.url;el.append(name,url);el.onclick=()=>navigate(item.url,true);h.appendChild(el)});b.innerHTML='';if(!state.bookmarks.length)b.innerHTML='<div class="empty">Your saved pages will appear here.</div>';state.bookmarks.forEach(item=>{const el=document.createElement('button');el.className='sideitem';const name=document.createElement('span');name.textContent=item.title||label(item.url);const url=document.createElement('span');url.className='url';url.textContent=item.url;el.append(name,url);el.onclick=()=>navigate(item.url,true);b.appendChild(el)})}
+function renderLists(){}
 function activate(id){state.active=id;const t=tab();renderTabs();if(t.url){address.value=t.url;loadFrame(t.url)}else showHome();updateNav();save()}
 function updateNav(){const t=tab();$('back').disabled=t.index<=0;$('forward').disabled=t.index<0||t.index>=t.entries.length-1}
 function navigate(raw,fromList=false){
@@ -129,8 +123,28 @@ async function loadFrame(url){
   const client=await getEpoxyClient();
   const response=await client.fetch(parsed.href);
   const body=await response.text();
-  frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{margin:0;padding:22px;background:#100b0f;color:#eee;font:13px ui-monospace,monospace}h2{font:700 18px system-ui;color:#ff8290}p{color:#bcaeb4;font:12px system-ui}pre{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.5}</style><h2>ebertNet · Epoxy response</h2><p>Fetched through Wisp · HTTP '+response.status+' · '+body.length+' characters</p><pre>'+escapeHtml(body.slice(0,100000))+'</pre>';
-  $('backendStatus').textContent='CONNECTED · HTTP '+response.status+' · '+body.length+' characters received through Epoxy';
+  const parsedDoc=new DOMParser().parseFromString(body,'text/html');
+  const pageTitle=(parsedDoc.title||parsed.hostname).slice(0,120);
+  const allowedTags=new Set(['MAIN','ARTICLE','SECTION','HEADER','FOOTER','NAV','DIV','SPAN','P','H1','H2','H3','H4','H5','H6','UL','OL','LI','BLOCKQUOTE','PRE','CODE','STRONG','B','EM','I','SMALL','BR','HR','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','DL','DT','DD']);
+  function cleanNode(node,outDoc){
+   if(node.nodeType===Node.TEXT_NODE)return outDoc.createTextNode(node.nodeValue||'');
+   if(node.nodeType!==Node.ELEMENT_NODE)return null;
+   const tag=node.tagName;
+   if(['SCRIPT','STYLE','NOSCRIPT','IFRAME','OBJECT','EMBED','SVG','FORM','INPUT','BUTTON','VIDEO','AUDIO','CANVAS','TEMPLATE'].includes(tag))return null;
+   const outputTag=tag==='A'?'SPAN':(allowedTags.has(tag)?tag:'DIV');
+   const el=outDoc.createElement(outputTag);
+   if(tag==='A'){el.className='page-link';const href=node.getAttribute('href');if(href)el.title='Link: '+href;}
+   if(tag==='TH'||tag==='TD'){const span=node.getAttribute('colspan');if(span&&/^\\d{1,2}$/.test(span))el.setAttribute('colspan',span);}
+   for(const child of node.childNodes){const clean=cleanNode(child,outDoc);if(clean)el.appendChild(clean);}
+   return el;
+  }
+  const safeDoc=document.implementation.createHTMLDocument(pageTitle);
+  const source=parsedDoc.body||parsedDoc.documentElement;
+  for(const child of source.childNodes){const clean=cleanNode(child,safeDoc);if(clean)safeDoc.body.appendChild(clean);}
+  let safeContent=safeDoc.body.innerHTML;
+  if(!safeContent.trim())safeContent='<p>This page did not contain readable HTML text.</p>';
+  frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(pageTitle)+'</title><style>*{box-sizing:border-box}body{margin:0;padding:clamp(20px,4vw,52px);max-width:1100px;margin-inline:auto;background:#fff;color:#202124;font:16px/1.65 Arial,sans-serif;overflow-wrap:anywhere}h1,h2,h3,h4{line-height:1.2;margin:1.3em 0 .55em;color:#171717}h1{font-size:2.2rem}h2{font-size:1.7rem}p{margin:.8em 0}ul,ol{padding-left:2em}pre,code{font-family:ui-monospace,monospace;background:#f1f3f4;border-radius:5px}pre{padding:14px;overflow:auto;white-space:pre-wrap}blockquote{border-left:4px solid #dadce0;padding-left:16px;color:#555;margin:1em 0}table{border-collapse:collapse;max-width:100%;display:block;overflow:auto}td,th{border:1px solid #dadce0;padding:8px;text-align:left}.page-link{color:#1769aa;text-decoration:underline}</style></head><body>'+safeContent+'</body></html>';
+  $('backendStatus').textContent='CONNECTED · HTTP '+response.status+' · rendered '+pageTitle+' ('+body.length+' source characters)';
  }catch(error){
   frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{background:#100b0f;color:#fff;font:14px system-ui;padding:24px}h2{color:#ff8290}p{color:#cbbdc3}</style><h2>Epoxy fetch failed</h2><p>'+escapeHtml(error?.message||String(error))+'</p>';
   $('backendStatus').textContent='Fetch failed: '+(error?.message||String(error));
@@ -141,11 +155,9 @@ function closeTab(id){if(state.tabs.length===1){const t=state.tabs[0];t.url='';t
 $('go').onclick=()=>navigate(address.value);address.addEventListener('keydown',e=>{if(e.key==='Enter')navigate(address.value)});
 $('back').onclick=()=>{const t=tab();if(t.index>0){t.index--;t.url=t.entries[t.index];t.title=label(t.url);address.value=t.url;loadFrame(t.url);renderTabs();updateNav();save()}};
 $('forward').onclick=()=>{const t=tab();if(t.index<t.entries.length-1){t.index++;t.url=t.entries[t.index];t.title=label(t.url);address.value=t.url;loadFrame(t.url);renderTabs();updateNav();save()}};
-$('reload').onclick=()=>{if(tab().url)frame.src=tab().url};
+$('reload').onclick=()=>{if(tab().url)loadFrame(tab().url)};
 $('home').onclick=()=>{const t=tab();t.url='';t.title='New tab';t.entries=[];t.index=-1;showHome();renderTabs();updateNav();save()};
 $('backHome').onclick=$('home').onclick;
-$('bookmark').onclick=()=>{const t=tab();if(!t.url)return;const i=state.bookmarks.findIndex(x=>x.url===t.url);if(i>=0)state.bookmarks.splice(i,1);else state.bookmarks.push({url:t.url,title:t.title});renderLists();save();$('bookmark').textContent=i>=0?'☆':'★'};
-$('clearHistory').onclick=()=>{state.history=[];renderLists();save()};
 $('settingsToggle').onclick=()=> $('settingsPanel').classList.toggle('open');
 $('closeSettings').onclick=()=> $('settingsPanel').classList.remove('open');
 $('searchEngine').value=searchEngine;
