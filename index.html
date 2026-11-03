@@ -216,6 +216,9 @@ async function loadFrame(url,request={}){
    const player=new URL(youtubeEmbed);
    player.searchParams.set('hl','en');
    player.searchParams.set('origin','https://sigmapoopyman69.github.io');
+   // srcdoc takes precedence over src on an iframe. Clear the previous
+   // proxied document before navigating to YouTube's hosted player.
+   frame.removeAttribute('srcdoc');
    frame.removeAttribute('sandbox');
    frame.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
    frame.setAttribute('allow','autoplay; encrypted-media; fullscreen; picture-in-picture');
