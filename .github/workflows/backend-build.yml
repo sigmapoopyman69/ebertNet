@@ -1,0 +1,48 @@
+name: Build ebertNet Epoxy backend
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-build.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate backend configuration
+        run: |
+          python3 - <<'PY'
+          import tomllib
+          from pathlib import Path
+
+          config = tomllib.loads(Path("backend/epoxy.toml").read_text())
+          assert config["server"]["transport"] == "websocket"
+          assert config["wisp"]["wisp_v2"] is True
+          stream = config["stream"]
+          assert stream["allow_udp"] is False
+          assert stream["allow_direct_ip"] is False
+          assert stream["allow_loopback"] is False
+          assert stream["allow_non_global"] is False
+          assert set(config["stream"]["allow_hosts"]) == {
+              r"^(example\.com|www\.example\.com)$",
+              r"^(developer\.mozilla\.org)$",
+          }
+          print("Backend configuration checks passed.")
+          PY
+
+      - name: Build Epoxy server container
+        run: docker build --tag ebertnet-epoxy:test --file backend/Dockerfile .
