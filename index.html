@@ -178,7 +178,7 @@ async function loadFrame(url){
     const cssType=(cssResponse.headers.get('content-type')||'').toLowerCase();
     if(cssType && !cssType.includes('text/css'))continue;
     let css=await cssResponse.text();
-    css=css.replace(/url\\(\\s*(['"]?)(?!data:|blob:|https?:|\\/\\/|#)([^'")]+)\\1\\s*\\)/gi,(match,quote,path)=>{
+    css=css.replace(/url\(\s*(['"]?)(?!data:|blob:|https?:|\/\/|#)([^'")]+)\1\s*\)/gi,(match,quote,path)=>{
      try{return 'url("'+new URL(path.trim(),cssUrl.href).href.replace(/"/g,'%22')+'")'}catch{return match}
     });
     const style=doc.createElement('style');
