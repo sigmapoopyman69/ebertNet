@@ -78,7 +78,7 @@ async function getEpoxyClient(){
  if(epoxyClient)return epoxyClient;
  const u=new URL(EPOXY_BACKEND_URL);
  if(u.protocol!=='wss:')throw new Error('Backend must use secure wss:// (TLS).');
- const mod=await import('https://esm.sh/@mercuryworkshop/epoxy-tls@2.1.20-1/epoxy-bundled');
+ const mod=await import('https://esm.sh/@mercuryworkshop/epoxy-tls@2.1.20-1/minimal-bundled');
  if(mod.default)await mod.default();
  const options=new mod.EpoxyClientOptions();
  options.user_agent=navigator.userAgent;options.wisp_v2=true;options.udp_extension_required=false;
