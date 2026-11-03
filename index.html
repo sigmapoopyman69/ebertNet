@@ -69,7 +69,7 @@ function storageGet(key,fallback=''){try{return localStorage.getItem(key)??fallb
 function storageSet(key,value){try{localStorage.setItem(key,value)}catch{}}
 let searchEngine=storageGet('ebertnet-search-engine','duckduckgo');
 let epoxyClient=null;
-const ALLOWED_HOSTS=new Set(['example.com','developer.mozilla.org']);
+const ALLOWED_HOSTS=new Set(['example.com','developer.mozilla.org','youtube.com','www.youtube.com','m.youtube.com']);
 function escapeHtml(value){return String(value).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));}
 async function getEpoxyClient(){
  if(epoxyClient)return epoxyClient;
