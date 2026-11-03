@@ -146,9 +146,23 @@ async function loadFrame(url){
   if(!ALLOWED_HOSTS.has(parsed.hostname)||!['https:','http:'].includes(parsed.protocol))throw new Error('Only example.com and developer.mozilla.org are enabled in this test.');
   $('backendStatus').textContent='Fetching '+parsed.hostname+' through Epoxy…';
   const client=await getEpoxyClient();
-  const response=await client.fetch(parsed.href);
+  // Ask the origin for a document, not a stylesheet or other asset.
+  const response=await client.fetch(parsed.href,{headers:{'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'}});
   if(!response.ok)throw new Error('Website returned HTTP '+response.status);
+  const contentType=(response.headers.get('content-type')||'').toLowerCase();
   const body=await response.text();
+  // Never treat a CSS/JS/image response as HTML: that caused raw stylesheet
+  // source to be displayed as page text in the viewer.
+  const looksLikeHtml=/<!doctype\\s+html|<html[\\s>]|<body[\\s>]/i.test(body.slice(0,12000));
+  if(contentType.includes('text/css')||contentType.includes('javascript')||contentType.startsWith('image/')){
+   throw new Error('The proxy returned '+(contentType.split(';')[0]||'a non-HTML response')+' instead of a webpage. Try Reload; if it repeats, the upstream proxy response needs investigation.');
+  }
+  if(contentType && !contentType.includes('text/html') && !contentType.includes('application/xhtml+xml') && !looksLikeHtml){
+   throw new Error('Expected an HTML webpage, but the server returned '+contentType+'. The response was not displayed as page text.');
+  }
+  if(!looksLikeHtml && !contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')){
+   throw new Error('The server response does not look like an HTML webpage, so ebertNet stopped instead of displaying raw code.');
+  }
   const parsedDoc=new DOMParser().parseFromString(body,'text/html');
   const pageTitle=(parsedDoc.title||parsed.hostname).slice(0,120);
   const cleanCss=css=>String(css||'')
