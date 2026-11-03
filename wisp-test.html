@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101510">
+  <title>ebertNet — Wisp connection test</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: grid; place-items: center;
+      padding: 24px; color: #e8f1e8; background:
+      radial-gradient(ellipse at 50% 0%, #203d2a 0, transparent 55%), #0b100d;
+    }
+    main {
+      width: min(100%, 520px); padding: 28px; border: 1px solid #294331;
+      border-radius: 18px; background: #111a14; box-shadow: 0 24px 80px #0008;
+    }
+    .eyebrow { color: #8fc69b; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; }
+    h1 { margin: 10px 0; font-size: clamp(25px, 6vw, 34px); }
+    p { color: #aebcaf; line-height: 1.6; }
+    button {
+      width: 100%; margin-top: 14px; padding: 14px 18px; border: 0;
+      border-radius: 10px; background: #7bd68d; color: #102015;
+      font-weight: 750; font-size: 15px; cursor: pointer;
+    }
+    button:disabled { opacity: .55; cursor: wait; }
+    #result {
+      margin-top: 18px; padding: 14px; min-height: 72px; border-radius: 10px;
+      background: #0b110d; border: 1px solid #26382b; color: #d8e8da;
+      white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5;
+    }
+    code { color: #a9e8b5; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="eyebrow">ebertNet / diagnostics</div>
+    <h1>Wisp connection test</h1>
+    <p>This checks whether the hostname accepts a secure WebSocket connection. It does not send proxy requests or browse to other sites.</p>
+    <p>Endpoint: <code>wss://ebertnet.wispbyte.app</code></p>
+    <button id="test" type="button">Test secure WebSocket</button>
+    <div id="result" role="status" aria-live="polite">Ready to test.</div>
+  </main>
+  <script>
+    const button = document.getElementById("test");
+    const result = document.getElementById("result");
+    button.addEventListener("click", () => {
+      button.disabled = true;
+      result.textContent = "Connecting…";
+      let finished = false;
+      let socket;
+      const finish = (message) => {
+        if (finished) return;
+        finished = true;
+        result.textContent = message;
+        button.disabled = false;
+      };
+      const timeout = setTimeout(() => {
+        if (socket && socket.readyState === WebSocket.CONNECTING) {
+          finish("TIMEOUT: No WebSocket connection was established within 10 seconds.");
+          socket.close();
+        }
+      }, 10000);
+      try {
+        socket = new WebSocket("wss://ebertnet.wispbyte.app");
+        socket.addEventListener("open", () => {
+          clearTimeout(timeout);
+          finish("CONNECTED: Secure WebSocket handshake succeeded.");
+          socket.close(1000, "Connection test complete");
+        }, { once: true });
+        socket.addEventListener("error", () => {
+          clearTimeout(timeout);
+          finish("FAILED: The browser could not establish the WebSocket connection. This can be caused by TLS, routing, port, or upgrade configuration.");
+        }, { once: true });
+        socket.addEventListener("close", (event) => {
+          clearTimeout(timeout);
+          if (!finished) finish("CLOSED before connecting. Code: " + event.code + (event.reason ? "\nReason: " + event.reason : ""));
+        }, { once: true });
+      } catch (error) {
+        clearTimeout(timeout);
+        finish("ERROR: " + String(error));
+      }
+    });
+  </script>
+</body>
+</html>
