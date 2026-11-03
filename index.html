@@ -75,8 +75,7 @@ function escapeHtml(value){return String(value).replace(/[&<>"]/g,ch=>({'&':'&am
 async function getEpoxyClient(){
  if(epoxyClient)return epoxyClient;
  const u=new URL(EPOXY_BACKEND_URL);
- if(u.protocol==='https:')u.protocol='wss:';else if(u.protocol==='http:')u.protocol='ws:';
- if(!['ws:','wss:'].includes(u.protocol))throw new Error('Backend must use ws:// or wss://');
+ if(u.protocol!=='wss:')throw new Error('Backend must use secure wss:// (TLS).');
  const mod=await import('https://esm.sh/@mercuryworkshop/epoxy-tls@2.1.20-1/epoxy-bundled');
  if(mod.default)await mod.default();
  const options=new mod.EpoxyClientOptions();
@@ -363,7 +362,7 @@ $('testBackend').onclick=async()=>{
   else if(u.protocol==='http:')u.protocol='ws:';
   if(!['ws:','wss:'].includes(u.protocol))throw Error('Use ws:// or wss://');
   wispUrl=u.href;
- }catch{status.textContent='Enter a valid ws:// or wss:// backend address.';return}
+ }catch{status.textContent='Enter a valid secure wss:// backend address.';return}
  status.textContent='Loading Epoxy client…';
  $('backendResult').textContent='';
  try{
