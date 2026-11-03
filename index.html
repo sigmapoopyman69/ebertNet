@@ -160,7 +160,7 @@ async function loadFrame(url,request={}){
  frame.setAttribute('allow','autoplay; encrypted-media; fullscreen; picture-in-picture');
  try{
   const parsed=new URL(url);
-  if(!['https:','http:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS websites are supported.');
+  if(parsed.protocol!=='https:')throw new Error('Secure browsing requires HTTPS.');
   const isYouTubeHost=parsed.hostname==='youtube.com'||parsed.hostname.endsWith('.youtube.com')||parsed.hostname==='youtu.be'||parsed.hostname.endsWith('.youtu.be')||parsed.hostname==='youtube-nocookie.com'||parsed.hostname.endsWith('.youtube-nocookie.com');
   if(isYouTubeHost){
    const youtubeEmbed=youtubeEmbedUrl(parsed.href);
@@ -206,6 +206,7 @@ async function loadFrame(url,request={}){
   // Keep the upstream document intact. The browser—not a sanitizer—parses
   // the original markup, CSS, script tags, forms, SVG, canvas and media.
   const doc=new DOMParser().parseFromString(body,'text/html');
+  const securePolicy=doc.createElement('meta');securePolicy.httpEquiv='Content-Security-Policy';securePolicy.content='upgrade-insecure-requests';doc.head.prepend(securePolicy);
   const title=(doc.title||parsed.hostname).slice(0,120);
 
   // Fetch linked stylesheets through Epoxy and inline them. A srcdoc document
