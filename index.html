@@ -83,7 +83,22 @@ function renderTabs(){const host=$('tabs');host.innerHTML='';state.tabs.forEach(
 function renderLists(){const h=$('historyList'),b=$('bookmarkList');h.innerHTML='';const entries=state.history.slice().reverse().slice(0,60);if(!entries.length)h.innerHTML='<div class="empty">Your visited pages will appear here.</div>';entries.forEach(item=>{const el=document.createElement('button');el.className='sideitem';const name=document.createElement('span');name.textContent=item.title||label(item.url);const url=document.createElement('span');url.className='url';url.textContent=item.url;el.append(name,url);el.onclick=()=>navigate(item.url,true);h.appendChild(el)});b.innerHTML='';if(!state.bookmarks.length)b.innerHTML='<div class="empty">Your saved pages will appear here.</div>';state.bookmarks.forEach(item=>{const el=document.createElement('button');el.className='sideitem';const name=document.createElement('span');name.textContent=item.title||label(item.url);const url=document.createElement('span');url.className='url';url.textContent=item.url;el.append(name,url);el.onclick=()=>navigate(item.url,true);b.appendChild(el)})}
 function activate(id){state.active=id;const t=tab();renderTabs();if(t.url){address.value=t.url;loadFrame(t.url)}else showHome();updateNav();save()}
 function updateNav(){const t=tab();$('back').disabled=t.index<=0;$('forward').disabled=t.index<0||t.index>=t.entries.length-1}
-function navigate(raw,fromList=false){const url=safeUrl(raw);if(!url){address.focus();return}const t=tab();if(!fromList){t.entries=t.entries.slice(0,t.index+1);t.entries.push(url);t.index=t.entries.length-1}t.url=url;t.title=label(url);address.value=url;state.history.push({url,title:t.title,at:Date.now()});state.history=state.history.slice(-300);loadFrame(url);renderTabs();renderLists();updateNav();save()}
+function navigate(raw,fromList=false){
+ const input=String(raw||'').trim();
+ if(!input){address.focus();return}
+ const isSearch=!fromList&&(/\\s/.test(input)||(!input.includes('.')&&!/^https?:\\/\\//i.test(input)));
+ const url=isSearch?searchUrl(input):safeUrl(input);
+ if(!url){address.focus();return}
+ const t=tab();
+ if(!fromList){t.entries=t.entries.slice(0,t.index+1);t.entries.push(url);t.index=t.entries.length-1}
+ t.url=url;t.title=isSearch?'Search: '+input.slice(0,28):label(url);address.value=isSearch?input:url;
+ state.history.push({url,title:t.title,at:Date.now()});state.history=state.history.slice(-300);
+ if(isSearch){
+  const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.click();
+  frame.style.display='none';blocked.style.display='none';welcome.style.display='flex';
+ }else loadFrame(url);
+ renderTabs();renderLists();updateNav();save()
+}
 function loadFrame(url){welcome.style.display='none';blocked.style.display='none';frame.style.display='block';frame.src=url}
 function newTab(){const id=state.nextId++;state.tabs.push({id,url:'',title:'New tab',entries:[],index:-1});state.active=id;renderTabs();showHome();updateNav();save()}
 function closeTab(id){if(state.tabs.length===1){const t=state.tabs[0];t.url='';t.title='New tab';t.entries=[];t.index=-1;activate(t.id);return}const i=state.tabs.findIndex(t=>t.id===id);state.tabs=state.tabs.filter(t=>t.id!==id);if(state.active===id)state.active=state.tabs[Math.max(0,i-1)].id;activate(state.active)}
