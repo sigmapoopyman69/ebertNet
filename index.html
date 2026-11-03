@@ -51,7 +51,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <p>Native HTML rendering preserves page markup, CSS, scripts, and HTML5 media on enabled hosts.</p>
 </div></div>
 <iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-downloads allow-presentation" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
-<div class="blocked" id="blocked"><div><h2>Page rendering is not available yet</h2><p>This site is not currently enabled in the ebertNet backend allowlist. Add its hostname to both allowlists to browse it.</p><button id="backHome">Return to ebertNet home</button></div></div>
+<div class="blocked" id="blocked"><div><h2>Page rendering is not available yet</h2><p>This address could not be loaded. Check the URL and backend connection.</p><button id="backHome">Return to ebertNet home</button></div></div>
 </section>
 </div>
 <footer class="footer"><span>EBERTNET <b>/</b> BROWSER PROTOTYPE</span><span>History records addresses opened from this browser</span></footer>
@@ -70,7 +70,7 @@ function storageSet(key,value){try{localStorage.setItem(key,value)}catch{}}
 let searchEngine=storageGet('ebertnet-search-engine','duckduckgo');
 let epoxyClient=null;
 let currentPageScriptsEnabled=false;
-const ALLOWED_HOSTS=new Set(['example.com','developer.mozilla.org','youtube.com','www.youtube.com','m.youtube.com','duckduckgo.com','www.duckduckgo.com','html.duckduckgo.com']);
+const ALLOWED_HOSTS=null; // Frontend permits any HTTP/HTTPS hostname; network-scope restrictions remain in the backend.
 function escapeHtml(value){return String(value).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));}
 async function getEpoxyClient(){
  if(epoxyClient)return epoxyClient;
@@ -123,9 +123,9 @@ function navigate(raw,fromList=false){
  if(!openExternal){
   let parsed;
   try{parsed=new URL(url)}catch{showNavigationError('Invalid web address','Check the address and try again.');return}
-  if(!ALLOWED_HOSTS.has(parsed.hostname)){
+  if(!['http:','https:'].includes(parsed.protocol)){
    address.value=input;
-   showNavigationError('Website not enabled yet',parsed.hostname+' is not in the ebertNet backend allowlist. This address was not sent to Google. Add this host to both the frontend and backend allowlists before it can load.');
+   showNavigationError('Unsupported address','Only HTTP and HTTPS websites can be opened.');
    return;
   }
   if(!fromList){t.entries=t.entries.slice(0,t.index+1);t.entries.push(url);t.index=t.entries.length-1}
@@ -142,7 +142,7 @@ async function loadFrame(url){
  welcome.style.display='none';blocked.style.display='none';frame.style.display='block';
  try{
   const parsed=new URL(url);
-  if(!ALLOWED_HOSTS.has(parsed.hostname)||!['https:','http:'].includes(parsed.protocol))throw new Error('This hostname is not enabled in the ebertNet backend allowlist.');
+  if(!['https:','http:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS websites are supported.');
   $('backendStatus').textContent='Fetching '+parsed.hostname+' through Epoxy…';
   const client=await getEpoxyClient();
   const response=await client.fetch(parsed.href,{headers:{'Accept':'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8'}});
@@ -231,7 +231,7 @@ $('back').onclick=()=>{const t=tab();if(t.index>0){t.index--;t.url=t.entries[t.i
 $('forward').onclick=()=>{const t=tab();if(t.index<t.entries.length-1){t.index++;t.url=t.entries[t.index];t.title=label(t.url);address.value=t.url;loadFrame(t.url);renderTabs();updateNav();save()}};
 $('reload').onclick=()=>{if(tab().url)loadFrame(tab().url)};
 
-window.addEventListener('message',event=>{if(event.source!==frame.contentWindow||!event.data||typeof event.data!=='object')return;if(event.data.type==='ebert-navigate'&&typeof event.data.url==='string'){try{const target=new URL(event.data.url);if(ALLOWED_HOSTS.has(target.hostname)&&['http:','https:'].includes(target.protocol))navigate(target.href,true)}catch{}}else if(event.data.type==='ebert-form')$('backendStatus').textContent='Form submission is disabled in the isolated preview.'});
+window.addEventListener('message',event=>{if(event.source!==frame.contentWindow||!event.data||typeof event.data!=='object')return;if(event.data.type==='ebert-navigate'&&typeof event.data.url==='string'){try{const target=new URL(event.data.url);if(['http:','https:'].includes(target.protocol))navigate(target.href,true)}catch{}}else if(event.data.type==='ebert-form')$('backendStatus').textContent='Form submission is disabled in the isolated preview.'});
 $('home').onclick=()=>{const t=tab();t.url='';t.title='New tab';t.entries=[];t.index=-1;showHome();renderTabs();updateNav();save()};
 $('backHome').onclick=$('home').onclick;
 $('settingsToggle').onclick=()=> $('settingsPanel').classList.toggle('open');
