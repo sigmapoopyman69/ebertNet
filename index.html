@@ -37,7 +37,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
 </div>
 <div class="tabs" id="tabs"></div>
-<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><label class="toggle-label"><input id="enableScripts" type="checkbox"> Enable JavaScript for this page (experimental)</label><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Stage 3 improves address detection, direct navigation, and clear blocked-site errors. Only explicitly allowlisted hosts can load; scripts and active embeds remain disabled.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
+<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><label class="toggle-label"><input id="enableScripts" type="checkbox" checked disabled> JavaScript enabled (native page scripts)</label><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Stage 3 improves address detection, direct navigation, and clear blocked-site errors. Only explicitly allowlisted hosts can load; scripts and active embeds remain disabled.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
 
 <section class="viewer">
 <div class="welcome" id="welcome"><div class="welcome-inner">
@@ -48,7 +48,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="quick" data-url="https://developer.mozilla.org">MDN Docs</button>
 <button class="quick" data-url="https://www.wikipedia.org">Wikipedia</button>
 </div>
-<p>Stage 2 supports sanitized CSS and images on the two enabled demo hosts. Scripts and active embeds remain disabled.</p>
+<p>Native HTML rendering preserves page markup, CSS, scripts, and HTML5 media on enabled hosts.</p>
 </div></div>
 <iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-downloads allow-presentation" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
 <div class="blocked" id="blocked"><div><h2>Page rendering is not available yet</h2><p>This site is not currently enabled in the ebertNet backend allowlist. Add its hostname to both allowlists to browse it.</p><button id="backHome">Return to ebertNet home</button></div></div>
@@ -142,164 +142,62 @@ async function loadFrame(url){
  welcome.style.display='none';blocked.style.display='none';frame.style.display='block';
  try{
   const parsed=new URL(url);
-  currentPageScriptsEnabled=$('enableScripts').checked;
-  if(!ALLOWED_HOSTS.has(parsed.hostname)||!['https:','http:'].includes(parsed.protocol))throw new Error('Only example.com and developer.mozilla.org are enabled in this test.');
+  if(!ALLOWED_HOSTS.has(parsed.hostname)||!['https:','http:'].includes(parsed.protocol))throw new Error('This hostname is not enabled in the ebertNet backend allowlist.');
   $('backendStatus').textContent='Fetching '+parsed.hostname+' through Epoxy…';
   const client=await getEpoxyClient();
-  // Ask the origin for a document, not a stylesheet or other asset.
-  const response=await client.fetch(parsed.href,{headers:{'Accept':'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'}});
+  const response=await client.fetch(parsed.href,{headers:{'Accept':'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8'}});
   if(!response.ok)throw new Error('Website returned HTTP '+response.status);
   const contentType=(response.headers.get('content-type')||'').toLowerCase();
-  const body=await response.text();
-  // Never treat a CSS/JS/image response as HTML: that caused raw stylesheet
-  // source to be displayed as page text in the viewer.
-  const looksLikeHtml=/<!doctype\\s+html|<html[\\s>]|<body[\\s>]/i.test(body.slice(0,12000));
-  if(contentType.includes('text/css')||contentType.includes('javascript')||contentType.startsWith('image/')){
-   throw new Error('The proxy returned '+(contentType.split(';')[0]||'a non-HTML response')+' instead of a webpage. Try Reload; if it repeats, the upstream proxy response needs investigation.');
+  if(contentType.includes('text/css')||contentType.includes('javascript')||contentType.startsWith('image/')||contentType.startsWith('video/')||contentType.startsWith('audio/')){
+   throw new Error('The proxy returned '+contentType.split(';')[0]+' instead of an HTML document.');
   }
-  if(contentType && !contentType.includes('text/html') && !contentType.includes('application/xhtml+xml') && !looksLikeHtml){
-   throw new Error('Expected an HTML webpage, but the server returned '+contentType+'. The response was not displayed as page text.');
+  const body=await response.text();
+  const looksLikeHtml=/<(?:!doctype\\s+html|html(?:\\s|>)|head(?:\\s|>)|body(?:\\s|>))/i.test(body.slice(0,20000));
+  if(!looksLikeHtml && contentType && !contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')){
+   throw new Error('Expected an HTML document, but received '+contentType+'.');
   }
   if(!looksLikeHtml && !contentType.includes('text/html') && !contentType.includes('application/xhtml+xml')){
-   throw new Error('The server response does not look like an HTML webpage, so ebertNet stopped instead of displaying raw code.');
+   throw new Error('The response does not look like an HTML document. First response characters: '+body.slice(0,100).replace(/\\s+/g,' '));
   }
-  const parsedDoc=new DOMParser().parseFromString(body,'text/html');
-  const pageTitle=(parsedDoc.title||parsed.hostname).slice(0,120);
-  const cleanCss=css=>String(css||'')
-   .replace(/\/\*[\s\S]*?\*\//g,'')
-   .replace(/@import[^;]+;?/gi,'')
-   .replace(/url\s*\([^)]*\)/gi,'none')
-   .replace(/expression\s*\([^)]*\)/gi,'')
-   .replace(/behavior\s*:[^;]+;?/gi,'')
-   .replace(/-moz-binding\s*:[^;]+;?/gi,'')
-   .replace(/javascript\s*:/gi,'');
-  const safeDoc=document.implementation.createHTMLDocument(pageTitle);
-  const scriptNodes=currentPageScriptsEnabled?Array.from(parsedDoc.querySelectorAll('script')).slice(0,12):[];
-  const scriptPayloads=[];
-  if(currentPageScriptsEnabled){
-   for(const node of scriptNodes){
-    const type=(node.getAttribute('type')||'').trim().toLowerCase();
-    if(type && !['text/javascript','application/javascript','text/ecmascript','application/ecmascript'].includes(type))continue;
-    let code=node.textContent||'';
-    const src=node.getAttribute('src');
-    if(src){
-     try{
-      const scriptUrl=new URL(src,parsed.href);
-      if(!ALLOWED_HOSTS.has(scriptUrl.hostname)||!['http:','https:'].includes(scriptUrl.protocol))continue;
-      const scriptResponse=await client.fetch(scriptUrl.href);
-      if(!scriptResponse.ok)continue;
-      code=(await scriptResponse.text()).slice(0,350000);
-     }catch{continue}
-    }
-    if(code && code.length<=350000)scriptPayloads.push(code.replace(/<\/script/gi,'<\\/script'));
-   }
-  }
-  const safeHead=safeDoc.head;
-  const styleBlocks=Array.from(parsedDoc.querySelectorAll('style')).slice(0,12);
-  styleBlocks.forEach(node=>{const st=safeDoc.createElement('style');st.textContent=cleanCss(node.textContent);safeHead.appendChild(st)});
-  let cssCount=0,imageCount=0;
-  const cssLinks=Array.from(parsedDoc.querySelectorAll('link[rel~="stylesheet"][href]')).slice(0,6);
-  for(const link of cssLinks){
-   try{
-    const asset=new URL(link.getAttribute('href'),parsed.href);
-    if(!ALLOWED_HOSTS.has(asset.hostname)||!['http:','https:'].includes(asset.protocol))continue;
-    const cssResponse=await client.fetch(asset.href);
-    if(!cssResponse.ok)continue;
-    const cssText=(await cssResponse.text()).slice(0,300000);
-    const st=safeDoc.createElement('style');st.textContent=cleanCss(cssText);safeHead.appendChild(st);cssCount++;
-   }catch{}
-  }
-  const allowedTags=new Set(['MAIN','ARTICLE','SECTION','HEADER','FOOTER','NAV','DIV','SPAN','P','H1','H2','H3','H4','H5','H6','UL','OL','LI','BLOCKQUOTE','PRE','CODE','STRONG','B','EM','I','SMALL','BR','HR','TABLE','THEAD','TBODY','TFOOT','TR','TH','TD','DL','DT','DD','FIGURE','FIGCAPTION','PICTURE','IMG','A','TIME','ADDRESS','DETAILS','SUMMARY','MARK','SUB','SUP','VIDEO','AUDIO','SOURCE','TRACK','BUTTON','FORM','LABEL','SELECT','OPTION','TEXTAREA']);
-  const allowedStyle=/^(color|background-color|font-family|font-size|font-weight|font-style|line-height|text-align|text-decoration|white-space|display|visibility|opacity|margin|margin-top|margin-right|margin-bottom|margin-left|padding|padding-top|padding-right|padding-bottom|padding-left|border|border-color|border-width|border-style|border-radius|max-width|min-width|width|height|max-height|min-height|list-style-type|vertical-align|object-fit|gap|grid-template-columns|flex|flex-direction|align-items|justify-content)$/i;
-  async function fetchMedia(src){
-   try{
-    const asset=new URL(src,parsed.href);
-    if(!ALLOWED_HOSTS.has(asset.hostname)||!['http:','https:'].includes(asset.protocol))return '';
-    const res=await client.fetch(asset.href);if(!res.ok)return '';
-    const type=(res.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
-    if(!/^(video\/(mp4|webm|ogg)|audio\/(mpeg|mp3|mp4|ogg|wav|webm|aac))$/.test(type))return '';
-    const buffer=await res.arrayBuffer();if(buffer.byteLength>20000000)return '';
-    const bytes=new Uint8Array(buffer);let binary='';
-    for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
-    return 'data:'+type+';base64,'+btoa(binary);
-   }catch{return ''}
-  }
-  async function fetchImage(src){
-   try{
-    const asset=new URL(src,parsed.href);
-    if(!ALLOWED_HOSTS.has(asset.hostname)||!['http:','https:'].includes(asset.protocol))return '';
-    const res=await client.fetch(asset.href);if(!res.ok)return '';
-    const type=(res.headers.get('content-type')||'').split(';')[0].trim().toLowerCase();
-    if(!/^image\/(png|jpeg|gif|webp|avif|svg\+xml)$/.test(type))return '';
-    const buffer=await res.arrayBuffer();if(buffer.byteLength>1500000)return '';
-    const bytes=new Uint8Array(buffer);let binary='';
-    for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
-    imageCount++;return 'data:'+type+';base64,'+btoa(binary);
-   }catch{return ''}
-  }
-  async function cleanNode(node){
-   if(node.nodeType===Node.TEXT_NODE)return safeDoc.createTextNode(node.nodeValue||'');
-   if(node.nodeType!==Node.ELEMENT_NODE)return null;
-   const tag=node.tagName;
-   if(['SCRIPT','NOSCRIPT','OBJECT','EMBED','SVG','INPUT','CANVAS','TEMPLATE','BASE','META','LINK'].includes(tag))return null;
-   if(tag==='VIDEO'||tag==='AUDIO'){
-    const media=safeDoc.createElement(tag.toLowerCase());
-    media.controls=true;media.preload='metadata';media.style.maxWidth='100%';
-    const direct=node.getAttribute('src');
-    const sourceNodes=Array.from(node.querySelectorAll('source')).slice(0,3);
-    const candidates=[...(direct?[direct]:[]),...sourceNodes.map(x=>x.getAttribute('src')).filter(Boolean)];
-    for(const candidate of candidates){const data=await fetchMedia(candidate);if(data){media.src=data;break}}
-    if(!media.src)return null;
-    return media;
-   }
-   if(tag==='IFRAME'){
-    const src=node.getAttribute('src');if(!src)return null;
-    try{const target=new URL(src,parsed.href);if(!ALLOWED_HOSTS.has(target.hostname)||!['http:','https:'].includes(target.protocol))return null;
-     const embedded=safeDoc.createElement('iframe');embedded.src=target.href;embedded.title=node.getAttribute('title')||'Embedded content';embedded.loading='lazy';embedded.referrerPolicy='no-referrer';embedded.sandbox='allow-scripts allow-presentation';embedded.style.width='100%';embedded.style.minHeight='240px';embedded.style.border='0';return embedded;
-    }catch{return null}
-   }
-   if(tag==='IMG'){
-    if(imageCount>=15)return null;
-    const src=node.getAttribute('src')||node.getAttribute('data-src');
-    if(!src)return null;
-    const data=await fetchImage(src);if(!data)return null;
-    const img=safeDoc.createElement('img');img.src=data;img.alt=node.getAttribute('alt')||'';img.loading='lazy';
-    const width=node.getAttribute('width'),height=node.getAttribute('height');
-    if(width&&/^\d{1,4}$/.test(width))img.width=Number(width);
-    if(height&&/^\d{1,4}$/.test(height))img.height=Number(height);
-    img.style.maxWidth='100%';img.style.height='auto';return img;
-   }
-   const outputTag=allowedTags.has(tag)?tag:'div';
-   const el=safeDoc.createElement(outputTag);
-   if(tag==='FORM'){el.addEventListener;el.setAttribute('data-ebert-form','1');el.setAttribute('onsubmit','return false');}
-   if(tag==='BUTTON'){el.setAttribute('type','button');}
-   if(tag==='A'){
-    const href=node.getAttribute('href');
-    if(href){try{const target=new URL(href,parsed.href);if(['http:','https:'].includes(target.protocol)&&ALLOWED_HOSTS.has(target.hostname)){el.setAttribute('data-ebert-href',target.href);el.style.color='#1769aa';el.style.textDecoration='underline';}else el.title='Link not available: outside the demo allowlist';}catch{}}
-   }
-   for(const attr of ['alt','title','colspan','rowspan','class','id','width','height','datetime']){
-    const value=node.getAttribute(attr);
-    if(value&&value.length<300&&(!['colspan','rowspan','width','height'].includes(attr)||/^\d{1,4}$/.test(value)))el.setAttribute(attr,value);
-   }
-   const inline=node.getAttribute('style');
-   if(inline){
-    inline.split(';').forEach(part=>{const pos=part.indexOf(':');if(pos<1)return;const prop=part.slice(0,pos).trim(),value=part.slice(pos+1).trim();if(allowedStyle.test(prop)&&value.length<160&&!/url\s*\(|expression|javascript:|@import/i.test(value))el.style.setProperty(prop,value)});
-   }
-   for(const child of node.childNodes){const clean=await cleanNode(child);if(clean)el.appendChild(clean)}
-   return el;
-  }
-  const source=parsedDoc.body||parsedDoc.documentElement;
-  for(const child of source.childNodes){const clean=await cleanNode(child);if(clean)safeDoc.body.appendChild(clean)}
-  let safeContent=safeDoc.body.innerHTML;
-  if(!safeContent.trim())safeContent='<p>This page did not contain readable HTML text.</p>';
-  const baseCss='*{box-sizing:border-box}html{background:#fff}body{margin:0;padding:clamp(18px,3.5vw,48px);max-width:1200px;margin-inline:auto;background:#fff;color:#202124;font:16px/1.6 Arial,sans-serif;overflow-wrap:anywhere}img{max-width:100%;height:auto;object-fit:contain}a{cursor:pointer}table{border-collapse:collapse;max-width:100%;display:block;overflow:auto}td,th{border:1px solid #ddd;padding:8px;text-align:left}pre{white-space:pre-wrap;overflow:auto;background:#f4f4f4;padding:12px;border-radius:6px}';
-  const csp='<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\' data:; img-src data: blob:; media-src data: blob:; font-src data:; connect-src \'none\'; frame-src https://youtube.com https://www.youtube.com https://m.youtube.com https://example.com https://developer.mozilla.org https://duckduckgo.com https://www.duckduckgo.com; object-src \'none\'; form-action \'none\'; base-uri \'none\'>';
-  const scripts=scriptPayloads.map(code=>'<script>'+code+'</scr'+'ipt>').join('');
-  const bridge='<script>document.addEventListener(\'click\',function(e){var a=e.target.closest(\'a[href]\');if(a){var u=new URL(a.href,location.href);if(u.protocol===\'https:\'||u.protocol===\'http:\'){e.preventDefault();parent.postMessage({type:\'ebert-navigate\',url:u.href},\'*\')}}});document.addEventListener(\'submit\',function(e){e.preventDefault();parent.postMessage({type:\'ebert-form\'},\'*\')});</scr'+'ipt>';
-  frame.srcdoc='<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+escapeHtml(pageTitle)+'</title>'+csp+'<style>'+baseCss+'</style>'+safeHead.innerHTML+'</head><body>'+safeContent+bridge+scripts+'</body></html>';
-  $('backendStatus').textContent='STAGE 4 · HTTP '+response.status+' · '+pageTitle+' · '+cssCount+' stylesheets · '+imageCount+' images · '+scriptPayloads.length+' scripts · '+(currentPageScriptsEnabled?'JavaScript ON':'JavaScript OFF');
+
+  // Keep the upstream document intact. The browser—not a sanitizer—parses
+  // the original markup, CSS, script tags, forms, SVG, canvas and media.
+  const doc=new DOMParser().parseFromString(body,'text/html');
+  const title=(doc.title||parsed.hostname).slice(0,120);
+  doc.querySelectorAll('base').forEach(node=>node.remove());
+  const base=doc.createElement('base');
+  base.href=parsed.href;
+  doc.head.prepend(base);
+
+  // The iframe remains sandboxed on an opaque origin. This allows page
+  // scripts to execute without granting the remote page access to ebertNet's
+  // parent window or local storage. Cross-origin APIs may still be restricted.
+  const bridge=doc.createElement('script');
+  bridge.textContent=`(()=> {
+   document.addEventListener('click',e=>{
+    const a=e.target&&e.target.closest?e.target.closest('a[href]'):null;
+    if(!a)return;
+    let u;try{u=new URL(a.href,document.baseURI)}catch{return}
+    if(u.protocol!=='https:'&&u.protocol!=='http:')return;
+    e.preventDefault();
+    parent.postMessage({type:'ebert-navigate',url:u.href},'*');
+   },true);
+   document.addEventListener('submit',e=>{
+    const form=e.target;
+    if(!(form instanceof HTMLFormElement))return;
+    let u;try{u=new URL(form.action||location.href,document.baseURI)}catch{return}
+    if(u.protocol!=='https:'&&u.protocol!=='http:')return;
+    e.preventDefault();
+    parent.postMessage({type:'ebert-navigate',url:u.href},'*');
+   },true);
+  })();`;
+  doc.body.appendChild(bridge);
+
+  const html='<!doctype html>'+doc.documentElement.outerHTML;
+  frame.srcdoc=html;
+  $('backendStatus').textContent='NATIVE HTML · HTTP '+response.status+' · '+title+' · original markup and styles preserved · JavaScript enabled · native audio/video';
  }catch(error){
-  frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{background:#100b0f;color:#fff;font:14px system-ui;padding:24px}h2{color:#ff8290}p{color:#cbbdc3}</style><h2>Epoxy fetch failed</h2><p>'+escapeHtml(error?.message||String(error))+'</p>';
+  frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{background:#100b0f;color:#fff;font:14px system-ui;padding:24px}h2{color:#ff8290}p{color:#cbbdc3;overflow-wrap:anywhere}</style><h2>Unable to load page</h2><p>'+escapeHtml(error?.message||String(error))+'</p>';
   $('backendStatus').textContent='Fetch failed: '+(error?.message||String(error));
  }
 }
@@ -309,7 +207,7 @@ $('go').onclick=()=>navigate(address.value);address.addEventListener('keydown',e
 $('back').onclick=()=>{const t=tab();if(t.index>0){t.index--;t.url=t.entries[t.index];t.title=label(t.url);address.value=t.url;loadFrame(t.url);renderTabs();updateNav();save()}};
 $('forward').onclick=()=>{const t=tab();if(t.index<t.entries.length-1){t.index++;t.url=t.entries[t.index];t.title=label(t.url);address.value=t.url;loadFrame(t.url);renderTabs();updateNav();save()}};
 $('reload').onclick=()=>{if(tab().url)loadFrame(tab().url)};
-$('enableScripts').checked=storageGet('ebertnet-js-enabled','false')==='true';
+$('enableScripts').checked=storageGet('ebertnet-js-enabled','true')!=='false';
 $('enableScripts').addEventListener('change',()=>{storageSet('ebertnet-js-enabled',$('enableScripts').checked?'true':'false');if(tab().url)loadFrame(tab().url)});
 window.addEventListener('message',event=>{if(event.source!==frame.contentWindow||!event.data||typeof event.data!=='object')return;if(event.data.type==='ebert-navigate'&&typeof event.data.url==='string'){try{const target=new URL(event.data.url);if(ALLOWED_HOSTS.has(target.hostname)&&['http:','https:'].includes(target.protocol))navigate(target.href,true)}catch{}}else if(event.data.type==='ebert-form')$('backendStatus').textContent='Form submission is disabled in the isolated preview.'});
 $('home').onclick=()=>{const t=tab();t.url='';t.title='New tab';t.entries=[];t.index=-1;showHome();renderTabs();updateNav();save()};
