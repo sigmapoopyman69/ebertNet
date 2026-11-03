@@ -200,58 +200,8 @@ async function loadFrame(url,request={}){
   const securePolicy=doc.createElement('meta');securePolicy.httpEquiv='Content-Security-Policy';securePolicy.content='upgrade-insecure-requests';doc.head.prepend(securePolicy);
   const title=(doc.title||parsed.hostname).slice(0,120);
 
-  // Fetch linked stylesheets through Epoxy and inline them. A srcdoc document
-  // has an opaque origin, and direct stylesheet requests can be blocked or
-  // lose their original stylesheet-relative URL base.
-  const stylesheetLinks=Array.from(doc.querySelectorAll('link[rel~="stylesheet"][href]'));
-  for(const link of stylesheetLinks){
-   try{
-    const cssUrl=new URL(link.getAttribute('href'),parsed.href);
-    if(!['http:','https:'].includes(cssUrl.protocol))continue;
-    const cssResponse=await client.fetch(cssUrl.href,{headers:{'Accept':'text/css,*/*;q=0.1'}});
-    if(!cssResponse.ok)continue;
-    // CDNs sometimes label CSS as text/plain or omit its MIME type.
-    let css=await cssResponse.text();
-    css=css.replace(/url\(\s*(['"]?)(?!data:|blob:|https?:|\/\/|#)([^'")]+)\1\s*\)/gi,(match,quote,path)=>{
-     try{return 'url("'+new URL(path.trim(),cssUrl.href).href.replace(/"/g,'%22')+'")'}catch{return match}
-    });
-    const style=doc.createElement('style');
-    if(link.media)style.media=link.media;
-    style.textContent=css;
-    link.replaceWith(style);
-   }catch{}
-  }
-  // Proxy common image assets through Epoxy so captcha tiles and remote
-  // thumbnails do not depend on direct cross-origin image requests.
-  const imageNodes=Array.from(doc.querySelectorAll('img[src], img[srcset]')).slice(0,24);
-  let imageCursor=0;
-  const imageWorker=async()=>{
-   while(imageCursor<imageNodes.length){
-    const img=imageNodes[imageCursor++];
-    try{
-     let source=img.getAttribute('src');
-     if(!source && img.getAttribute('srcset'))source=img.getAttribute('srcset').split(',')[0].trim().split(/\s+/)[0];
-     if(!source)continue;
-     const imageUrl=new URL(source,parsed.href);
-     if(!['http:','https:'].includes(imageUrl.protocol))continue;
-     img.loading='eager';
-     img.removeAttribute('crossorigin');
-     img.removeAttribute('srcset');
-     const imageResponse=await client.fetch(imageUrl.href,{headers:{'Accept':'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8','Referer':parsed.href}});
-     if(!imageResponse.ok)continue;
-     const imageBlob=await imageResponse.blob();
-     if(imageBlob.size>2*1024*1024)continue;
-     const mime=imageBlob.type||'application/octet-stream';
-     if(!mime.startsWith('image/'))continue;
-     const bytes=new Uint8Array(await imageBlob.arrayBuffer());
-     let binary='';
-     for(let i=0;i<bytes.length;i+=0x8000)binary+=String.fromCharCode(...bytes.subarray(i,i+0x8000));
-     img.src='data:'+mime+';base64,'+btoa(binary);
-    }catch{}
-   }
-  };
-  await Promise.all(Array.from({length:Math.min(5,imageNodes.length)},()=>imageWorker()));
-
+  // Avoid delaying first paint while serially fetching stylesheets and images.
+  // The browser renderer can request linked assets after srcdoc loads.
   // Keep native streaming for audio/video rather than downloading entire
   // media files into memory. Absolute URLs resolve through the document base.
   doc.querySelectorAll('video,audio').forEach(media=>{
@@ -278,10 +228,31 @@ async function loadFrame(url,request={}){
   // parent window or local storage. Cross-origin APIs may still be restricted.
   const bridge=doc.createElement('script');
   bridge.textContent=`(()=> {
+   const ebertHome='https://sigmapoopyman69.github.io/ebertNet/';
+   const maskLink=a=>{
+    if(!a||!a.hasAttribute('href'))return;
+    const current=a.getAttribute('data-ebert-dest')||a.getAttribute('href');
+    try{
+     const dest=new URL(current,document.baseURI);
+     if(dest.protocol!=='https:'&&dest.protocol!=='http:')return;
+     a.setAttribute('data-ebert-dest',dest.href);
+     a.setAttribute('href',ebertHome);
+    }catch{}
+   };
+   document.querySelectorAll('a[href]').forEach(maskLink);
+   new MutationObserver(records=>records.forEach(record=>{
+    if(record.type==='attributes'&&record.target instanceof HTMLAnchorElement)maskLink(record.target);
+    record.addedNodes.forEach(node=>{
+     if(node instanceof HTMLAnchorElement)maskLink(node);
+     if(node.querySelectorAll)node.querySelectorAll('a[href]').forEach(maskLink);
+    });
+   })).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['href']});
    document.addEventListener('click',e=>{
     const a=e.target&&e.target.closest?e.target.closest('a[href]'):null;
     if(!a)return;
-    let u;try{u=new URL(a.href,document.baseURI)}catch{return}
+    const original=a.getAttribute('data-ebert-dest');
+    if(!original)return;
+    let u;try{u=new URL(original,document.baseURI)}catch{return}
     if(u.protocol!=='https:'&&u.protocol!=='http:')return;
     e.preventDefault();
     parent.postMessage({type:'ebert-navigate',url:u.href},'*');
@@ -294,22 +265,18 @@ async function loadFrame(url,request={}){
     e.preventDefault();
     const submitter=e.submitter||null;
     const method=(submitter&&submitter.hasAttribute('formmethod')?submitter.formMethod:form.method||'get').toLowerCase();
-    if(submitter&&submitter.hasAttribute('formaction')){
-     try{u=new URL(submitter.formAction,document.baseURI)}catch{}
-    }
+    if(submitter&&submitter.hasAttribute('formaction')){try{u=new URL(submitter.formAction,document.baseURI)}catch{}}
     if(u.protocol!=='https:'&&u.protocol!=='http:')return;
-    const data=new FormData(form,submitter||undefined);
-    const pairs=[];
+    const data=new FormData(form,submitter||undefined),pairs=[];
     for(const [key,value] of data.entries())if(typeof value==='string')pairs.push([key,value]);
     if(method==='get'){
      for(const [key,value] of pairs)u.searchParams.append(key,value);
      parent.postMessage({type:'ebert-navigate',url:u.href},'*');
     }else if(method==='post'){
-     const body=new URLSearchParams(pairs).toString();
-     parent.postMessage({type:'ebert-form',url:u.href,method:'POST',body},'*');
+     parent.postMessage({type:'ebert-form',url:u.href,method:'POST',body:new URLSearchParams(pairs).toString()},'*');
     }
    },true);
-  })();`;
+  })();
   doc.body.appendChild(bridge);
 
   const html='<!doctype html>'+doc.documentElement.outerHTML;
