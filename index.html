@@ -160,12 +160,21 @@ async function loadFrame(url,request={}){
  try{
   const parsed=new URL(url);
   if(!['https:','http:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS websites are supported.');
-  const youtubeEmbed=youtubeEmbedUrl(parsed.href);
-  if(youtubeEmbed){
-   // YouTube needs its own origin and native adaptive media player. The
-   // cross-origin iframe cannot read or modify the ebertNet parent document.
-   frame.removeAttribute('sandbox');frame.referrerPolicy='origin';frame.src=youtubeEmbed;
-   $('backendStatus').textContent='YouTube native player · adaptive streaming · HD 720p requested (choose quality in player settings)';
+  const isYouTubeHost=parsed.hostname==='youtube.com'||parsed.hostname.endsWith('.youtube.com')||parsed.hostname==='youtu.be'||parsed.hostname.endsWith('.youtu.be')||parsed.hostname==='youtube-nocookie.com'||parsed.hostname.endsWith('.youtube-nocookie.com');
+  if(isYouTubeHost){
+   const youtubeEmbed=youtubeEmbedUrl(parsed.href);
+   // Never send YouTube document requests through Epoxy: its homepage can
+   // reset the HTTP/2 stream. Video URLs use YouTube's native adaptive player.
+   frame.removeAttribute('sandbox');frame.referrerPolicy='origin';
+   if(youtubeEmbed){
+    frame.src=youtubeEmbed;
+    $('backendStatus').textContent='YouTube native player · adaptive streaming · HD 720p requested (choose quality in player settings)';
+   }else{
+    // YouTube may block its homepage in an iframe. Attempt the native page
+    // directly rather than triggering the known Epoxy HTTP/2 failure.
+    frame.src='https://www.youtube.com/';
+    $('backendStatus').textContent='Opening YouTube directly in the browser frame. If YouTube refuses embedding, use a direct video link.';
+   }
    return;
   }
   if(!['https:','http:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS websites are supported.');
