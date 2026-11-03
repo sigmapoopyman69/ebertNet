@@ -29,12 +29,9 @@ allow_multicast = false
 allow_global = true
 allow_non_global = false
 
-# Starter allowlist only. Add domains you own or have permission to test.
-allow_hosts = [
-  "^(example\\.com|www\\.example\\.com)$",
-  "^(developer\\.mozilla\\.org)$",
-  "^(youtube\\.com|www\\.youtube\\.com|m\\.youtube\\.com)$"
-]
+# Permit public DNS hostnames without maintaining a per-site allowlist.
+# Stream policy above continues to disallow loopback, multicast, and non-global networks.
+allow_hosts = ["^[a-zA-Z0-9.-]+$"]
 
 # Only standard web ports.
 allow_ports = [[80, 80], [443, 443]]
