@@ -145,7 +145,7 @@ function youtubeEmbedUrl(raw){
   if(u.hostname==='youtu.be'||u.hostname.endsWith('.youtu.be'))id=u.pathname.split('/').filter(Boolean)[0]||'';
   else if(u.hostname==='youtube.com'||u.hostname.endsWith('.youtube.com')||u.hostname==='youtube-nocookie.com'||u.hostname.endsWith('.youtube-nocookie.com')){
    if(u.pathname==='/watch')id=u.searchParams.get('v')||'';
-   else if(/^\\/(shorts|embed|live)\\//.test(u.pathname))id=u.pathname.split('/')[2]||'';
+   else if(u.pathname.startsWith('/shorts/')||u.pathname.startsWith('/embed/')||u.pathname.startsWith('/live/'))id=u.pathname.split('/')[2]||'';
   }
   if(!/^[A-Za-z0-9_-]{11}$/.test(id))return null;
   const embed=new URL('https://www.youtube-nocookie.com/embed/'+id);
