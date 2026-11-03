@@ -32,7 +32,8 @@ allow_non_global = false
 # Starter allowlist only. Add domains you own or have permission to test.
 allow_hosts = [
   "^(example\\.com|www\\.example\\.com)$",
-  "^(developer\\.mozilla\\.org)$"
+  "^(developer\\.mozilla\\.org)$",
+  "^(youtube\\.com|www\\.youtube\\.com|m\\.youtube\\.com)$"
 ]
 
 # Only standard web ports.
