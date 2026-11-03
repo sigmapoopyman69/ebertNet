@@ -231,6 +231,7 @@ async function loadFrame(url,request={}){
    const ebertHome='https://sigmapoopyman69.github.io/ebertNet/';
    const maskLink=a=>{
     if(!a||!a.hasAttribute('href'))return;
+    if(a.getAttribute('href')===ebertHome&&a.hasAttribute('data-ebert-dest'))return;
     const current=a.getAttribute('data-ebert-dest')||a.getAttribute('href');
     try{
      const dest=new URL(current,document.baseURI);
