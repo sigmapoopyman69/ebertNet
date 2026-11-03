@@ -26,7 +26,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <body>
 <div class="scene" aria-hidden="true"></div>
 <div class="app">
-<header class="topbar"><div class="brand">ebert<span>Net</span></div><div class="status"><i class="dot"></i> NORMAL CONNECTION · EMBEDDED VIEW</div></header>
+<header class="topbar"><div class="brand">ebert<span>Net</span></div><div class="status"><i class="dot"></i> EBERTNET · BROWSER PROTOTYPE</div></header>
 <div class="toolbar">
 <button class="tool" id="back" title="Back" aria-label="Back" disabled>←</button>
 <button class="tool" id="forward" title="Forward" aria-label="Forward" disabled>→</button>
@@ -48,7 +48,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <section class="viewer">
 <div class="welcome" id="welcome"><div class="welcome-inner">
 <div class="welcome-logo">ebertNet</div><div class="tagline">A DARKER WAY TO EXPLORE</div>
-<p>Browse directly inside this window. Enter a web address or search term above.</p>
+<p>Enter a web address or search term above to navigate with ebertNet.</p>
 <div class="quicklinks">
 <button class="quick" data-url="https://example.com">Example</button>
 <button class="quick" data-url="https://developer.mozilla.org">MDN Docs</button>
@@ -57,10 +57,10 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <p>Some websites prevent being displayed inside another page. If a site refuses to load here, that is the site's embedding policy; ebertNet won't route around it.</p>
 </div></div>
 <iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-same-origin allow-downloads" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
-<div class="blocked" id="blocked"><div><h2>This site won't allow embedded viewing</h2><p>The website's security settings prevent it from appearing inside ebertNet. This browser respects that restriction and does not proxy or rewrite the page.</p><button id="backHome">Return to ebertNet home</button></div></div>
+<div class="blocked" id="blocked"><div><h2>Page rendering is not available yet</h2><p>The current prototype still uses a basic page container. The next browser-engine milestone is rendering fetched page content through the ebertNet backend.</p><button id="backHome">Return to ebertNet home</button></div></div>
 </section>
 </div>
-<footer class="footer"><span>EBERTNET <b>/</b> IN-PAGE BROWSER</span><span>History records addresses opened from this browser</span></footer>
+<footer class="footer"><span>EBERTNET <b>/</b> BROWSER PROTOTYPE</span><span>History records addresses opened from this browser</span></footer>
 </div>
 <script>
 (()=>{
@@ -86,11 +86,11 @@ function updateNav(){const t=tab();$('back').disabled=t.index<=0;$('forward').di
 function navigate(raw,fromList=false){
  const input=String(raw||'').trim();
  if(!input){address.focus();return}
- const isSearch=!fromList&&(/\\s/.test(input)||(!input.includes('.')&&!/^https?:\\/\\//i.test(input)));
+ const isSearch=!fromList&&(/\s/.test(input)||(!input.includes('.')&&!/^https?:\/\//i.test(input)));
  const url=isSearch?searchUrl(input):safeUrl(input);
  if(!url){address.focus();return}
  const t=tab();
- const searchResultLink=fromList&&/^(https?:\\/\\/)?(www\\.)?(duckduckgo\\.com|google\\.com|search\\.brave\\.com|bing\\.com)\\//i.test(url);
+ const searchResultLink=fromList&&/^(https?:\/\/)?(www\.)?(duckduckgo\.com|google\.com|search\.brave\.com|bing\.com)\//i.test(url);
  const openExternal=isSearch||searchResultLink;
  if(!openExternal){
   if(!fromList){t.entries=t.entries.slice(0,t.index+1);t.entries.push(url);t.index=t.entries.length-1}
