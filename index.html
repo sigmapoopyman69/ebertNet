@@ -199,7 +199,8 @@ async function loadFrame(url){
     img.src=imageUrl.href;
     img.loading='eager';
     img.removeAttribute('crossorigin');
-    const imageResponse=await client.fetch(imageUrl.href,{headers:{'Accept':'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'}});
+    img.removeAttribute('srcset');
+    const imageResponse=await client.fetch(imageUrl.href,{headers:{'Accept':'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8','Referer':parsed.href}});
     if(!imageResponse.ok)continue;
     const imageBlob=await imageResponse.blob();
     if(imageBlob.size>3*1024*1024)continue;
