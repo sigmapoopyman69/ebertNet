@@ -139,10 +139,35 @@ function navigate(raw,fromList=false){
  if(!isSearch){state.history.push({url,title:label(url),at:Date.now()});state.history=state.history.slice(-300)}
  renderTabs();renderLists();updateNav();save()
 }
+function youtubeEmbedUrl(raw){
+ try{
+  const u=new URL(raw);let id='';
+  if(u.hostname==='youtu.be'||u.hostname.endsWith('.youtu.be'))id=u.pathname.split('/').filter(Boolean)[0]||'';
+  else if(u.hostname==='youtube.com'||u.hostname.endsWith('.youtube.com')||u.hostname==='youtube-nocookie.com'||u.hostname.endsWith('.youtube-nocookie.com')){
+   if(u.pathname==='/watch')id=u.searchParams.get('v')||'';
+   else if(/^\\/(shorts|embed|live)\\//.test(u.pathname))id=u.pathname.split('/')[2]||'';
+  }
+  if(!/^[A-Za-z0-9_-]{11}$/.test(id))return null;
+  const embed=new URL('https://www.youtube-nocookie.com/embed/'+id);
+  embed.searchParams.set('vq','hd720');embed.searchParams.set('playsinline','1');embed.searchParams.set('rel','0');
+  return embed.href;
+ }catch{return null}
+}
 async function loadFrame(url,request={}){
  welcome.style.display='none';blocked.style.display='none';frame.style.display='block';
+ frame.setAttribute('sandbox','allow-forms allow-scripts allow-downloads allow-presentation');
+ frame.setAttribute('allow','autoplay; encrypted-media; fullscreen; picture-in-picture');
  try{
   const parsed=new URL(url);
+  if(!['https:','http:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS websites are supported.');
+  const youtubeEmbed=youtubeEmbedUrl(parsed.href);
+  if(youtubeEmbed){
+   // YouTube needs its own origin and native adaptive media player. The
+   // cross-origin iframe cannot read or modify the ebertNet parent document.
+   frame.removeAttribute('sandbox');frame.referrerPolicy='origin';frame.src=youtubeEmbed;
+   $('backendStatus').textContent='YouTube native player · adaptive streaming · HD 720p requested (choose quality in player settings)';
+   return;
+  }
   if(!['https:','http:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS websites are supported.');
   const method=(request.method||'GET').toUpperCase();
   if(!['GET','POST'].includes(method))throw new Error('This form method is not supported.');
@@ -228,12 +253,18 @@ async function loadFrame(url,request={}){
   // Keep native streaming for audio/video rather than downloading entire
   // media files into memory. Absolute URLs resolve through the document base.
   doc.querySelectorAll('video,audio').forEach(media=>{
-   media.controls=true;
+   // Use native browser streaming so media can buffer and issue byte-range
+   // requests instead of downloading the entire file through Epoxy.
+   media.controls=true;media.preload='metadata';
+   if(media.tagName==='VIDEO')media.playsInline=true;
    media.removeAttribute('crossorigin');
    if(media.hasAttribute('poster')){try{media.poster=new URL(media.getAttribute('poster'),parsed.href).href}catch{}}
   });
   doc.querySelectorAll('video source,audio source').forEach(source=>{
    try{source.src=new URL(source.getAttribute('src'),parsed.href).href}catch{}
+  });
+  doc.querySelectorAll('video,audio').forEach(media=>{
+   const src=media.getAttribute('src');if(src){try{media.src=new URL(src,parsed.href).href}catch{}}
   });
   doc.querySelectorAll('base').forEach(node=>node.remove());
   const base=doc.createElement('base');
