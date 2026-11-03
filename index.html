@@ -36,7 +36,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
 </div>
 <div class="tabs" id="tabs"></div>
-<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><div class="settings-note">Search powered by <strong>Brave Search</strong></div><div class="settings-note">Connection powered by <strong>Epoxy over secure WSS</strong></div><div class="settings-note"><strong>Privacy checks</strong><br>• Browser → gateway: WSS/TLS required<br>• Gateway → websites: HTTPS upgraded and required<br>• Certificate checks: handled by the browser and TLS stack<br>• DNS: resolved by the gateway host; encrypted DNS is not guaranteed<br>• WebRTC: sandbox limits page privileges, but direct embeds may use their own network connections</div><label class="toggle-label"><input id="enableScripts" type="checkbox" checked disabled> JavaScript enabled (native page scripts)</label><p>Uses Epoxy over Wisp for the initial document request. The original document is then rendered by the browser with native HTML, CSS, JavaScript, and HTML5 media support. The viewer preserves native page scripts, styles, images, SVG, canvas, and HTML5 audio/video. Search is powered by Brave Search. The connection runs through Epoxy.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
+<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><div class="settings-note">Search powered by <strong>Brave Search</strong></div><div class="settings-note">Rendering powered by <strong>your actual browser engine</strong>; initial website documents are fetched through <strong>Epoxy over secure WSS</strong>.</div><div class="settings-note"><strong>Privacy checks</strong><br>• Browser → gateway: WSS/TLS required<br>• Gateway → websites: HTTPS upgraded and required<br>• Certificate checks: handled by the browser and TLS stack<br>• DNS: resolved by the gateway host; encrypted DNS is not guaranteed<br>• WebRTC: sandbox limits page privileges, but direct embeds may use their own network connections</div><label class="toggle-label"><input id="enableScripts" type="checkbox" checked disabled> JavaScript enabled (native page scripts)</label><p>Uses Epoxy over Wisp for the initial document request. The original document is then rendered by the browser with native HTML, CSS, JavaScript, and HTML5 media support. The viewer preserves native page scripts, styles, images, SVG, canvas, and HTML5 audio/video. Search is powered by Brave Search. The connection runs through Epoxy.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
 
 <section class="viewer">
 <div class="welcome" id="welcome"><div class="welcome-inner">
@@ -161,22 +161,13 @@ async function loadFrame(url,request={}){
  try{
   const parsed=new URL(url);
   if(parsed.protocol!=='https:')throw new Error('Secure browsing requires HTTPS.');
+  // YouTube now follows the same Epoxy document-fetch path as other sites.
+  // The host browser still parses and renders the returned HTML; this first
+  // test does not guarantee that every YouTube API/media request is proxied.
   const isYouTubeHost=parsed.hostname==='youtube.com'||parsed.hostname.endsWith('.youtube.com')||parsed.hostname==='youtu.be'||parsed.hostname.endsWith('.youtu.be')||parsed.hostname==='youtube-nocookie.com'||parsed.hostname.endsWith('.youtube-nocookie.com');
   if(isYouTubeHost){
-   const youtubeEmbed=youtubeEmbedUrl(parsed.href);
-   // Never send YouTube document requests through Epoxy: its homepage can
-   // reset the HTTP/2 stream. Video URLs use YouTube's native adaptive player.
-   frame.removeAttribute('sandbox');frame.referrerPolicy='strict-origin-when-cross-origin';frame.allowFullscreen=true;
-   if(youtubeEmbed){
-    frame.src=youtubeEmbed;
-    $('backendStatus').textContent='YouTube native player · adaptive streaming · HD 720p requested (choose quality in player settings)';
-   }else{
-    // YouTube may block its homepage in an iframe. Attempt the native page
-    // directly rather than triggering the known Epoxy HTTP/2 failure.
-    frame.src='https://www.youtube.com/';
-    $('backendStatus').textContent='Opening YouTube directly in the browser frame. If YouTube refuses embedding, use a direct video link.';
-   }
-   return;
+   frame.setAttribute('sandbox','allow-forms allow-scripts allow-downloads allow-presentation');
+   $('backendStatus').textContent='Fetching YouTube document through Epoxy…';
   }
   if(!['https:','http:'].includes(parsed.protocol))throw new Error('Only HTTP and HTTPS websites are supported.');
   const method=(request.method||'GET').toUpperCase();
@@ -323,7 +314,7 @@ async function loadFrame(url,request={}){
 
   const html='<!doctype html>'+doc.documentElement.outerHTML;
   frame.srcdoc=html;
-  $('backendStatus').textContent='NATIVE HTML · HTTP '+response.status+' · '+title+' · original markup and styles preserved · JavaScript enabled · native audio/video';
+  $('backendStatus').textContent=(isYouTubeHost?'YOUTUBE DOCUMENT VIA EPOXY':'NATIVE HTML VIA EPOXY')+' · HTTP '+response.status+' · '+title+' · rendered by your browser engine · scripts enabled · media requests may use separate connections';
  }catch(error){
   frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{background:#100b0f;color:#fff;font:14px system-ui;padding:24px}h2{color:#ff8290}p{color:#cbbdc3;overflow-wrap:anywhere}</style><h2>Unable to load page</h2><p>'+escapeHtml(error?.message||String(error))+'</p>';
   $('backendStatus').textContent='Fetch failed: '+(error?.message||String(error));
