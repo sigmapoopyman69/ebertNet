@@ -37,7 +37,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
 </div>
 <div class="tabs" id="tabs"></div>
-<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><label class="toggle-label"><input id="enableScripts" type="checkbox" checked disabled> JavaScript enabled (native page scripts)</label><p>Uses Epoxy over Wisp for the initial document request. The original document is then rendered by the browser with native HTML, CSS, JavaScript, and HTML5 media support. Resource requests made by the page itself are subject to browser cross-origin rules and the backend allowlist.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
+<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option><option value="yahoo">Yahoo</option><option value="ecosia">Ecosia</option><option value="startpage">Startpage</option><option value="qwant">Qwant</option><option value="ask">Ask</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><label class="toggle-label"><input id="enableScripts" type="checkbox" checked disabled> JavaScript enabled (native page scripts)</label><p>Uses Epoxy over Wisp for the initial document request. The original document is then rendered by the browser with native HTML, CSS, JavaScript, and HTML5 media support. The viewer preserves native page scripts, styles, images, SVG, canvas, and HTML5 audio/video. Search providers include DuckDuckGo, Google, Brave, Bing, Yahoo, Ecosia, Startpage, Qwant, and Ask.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
 
 <section class="viewer">
 <div class="welcome" id="welcome"><div class="welcome-inner">
@@ -86,7 +86,7 @@ async function getEpoxyClient(){
  return epoxyClient;
 }
 
-function searchUrl(query){const q=encodeURIComponent(query);const engines={duckduckgo:'https://html.duckduckgo.com/html/?q='+q,google:'https://www.google.com/search?q='+q,brave:'https://search.brave.com/search?q='+q,bing:'https://www.bing.com/search?q='+q};return engines[searchEngine]||engines.duckduckgo}
+function searchUrl(query){const q=encodeURIComponent(query);const engines={duckduckgo:'https://html.duckduckgo.com/html/?q='+q,google:'https://www.google.com/search?q='+q,brave:'https://search.brave.com/search?q='+q,bing:'https://www.bing.com/search?q='+q,yahoo:'https://search.yahoo.com/search?p='+q,ecosia:'https://www.ecosia.org/search?q='+q,startpage:'https://www.startpage.com/sp/search?query='+q,qwant:'https://www.qwant.com/?q='+q,ask:'https://www.ask.com/web?q='+q};return engines[searchEngine]||engines.duckduckgo}
 function looksLikeAddress(raw){
  const v=raw.trim();
  if(!v)return false;
@@ -175,8 +175,7 @@ async function loadFrame(url){
     if(!['http:','https:'].includes(cssUrl.protocol))continue;
     const cssResponse=await client.fetch(cssUrl.href,{headers:{'Accept':'text/css,*/*;q=0.1'}});
     if(!cssResponse.ok)continue;
-    const cssType=(cssResponse.headers.get('content-type')||'').toLowerCase();
-    if(cssType && !cssType.includes('text/css'))continue;
+    // CDNs sometimes label CSS as text/plain or omit its MIME type.
     let css=await cssResponse.text();
     css=css.replace(/url\(\s*(['"]?)(?!data:|blob:|https?:|\/\/|#)([^'")]+)\1\s*\)/gi,(match,quote,path)=>{
      try{return 'url("'+new URL(path.trim(),cssUrl.href).href.replace(/"/g,'%22')+'")'}catch{return match}
