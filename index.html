@@ -78,7 +78,7 @@ async function getEpoxyClient(){
  const u=new URL(EPOXY_BACKEND_URL);
  if(u.protocol==='https:')u.protocol='wss:';else if(u.protocol==='http:')u.protocol='ws:';
  if(!['ws:','wss:'].includes(u.protocol))throw new Error('Backend must use ws:// or wss://');
- const mod=await import('https://esm.sh/@mercuryworkshop/epoxy-tls@2.1.20-1/minimal-bundled');
+ const mod=await import('https://esm.sh/@mercuryworkshop/epoxy-tls@2.1.20-1/epoxy-bundled');
  if(mod.default)await mod.default();
  const options=new mod.EpoxyClientOptions();
  options.user_agent=navigator.userAgent;options.wisp_v2=true;options.udp_extension_required=false;
