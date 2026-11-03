@@ -70,10 +70,27 @@ function storageGet(key,fallback=''){try{return localStorage.getItem(key)??fallb
 function storageSet(key,value){try{localStorage.setItem(key,value)}catch{}}
 let searchEngine='brave';
 let epoxyClient=null;
+let curlClient=null;
 const EPOXY_BACKEND_URL='wss://ebertnet.wispbyte.app';
 let currentPageScriptsEnabled=false;
 const ALLOWED_HOSTS=null; // Frontend permits any HTTP/HTTPS hostname; network-scope restrictions remain in the backend.
 function escapeHtml(value){return String(value).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));}
+async function getCurlClient(){
+ if(curlClient)return curlClient;
+ const mod=await import('https://esm.sh/@mercuryworkshop/libcurl-transport@2.0.6');
+ const CurlClient=mod.LibcurlClient||mod.default;
+ if(!CurlClient)throw new Error('The alternate HTTP transport did not load correctly.');
+ const wisp=EPOXY_BACKEND_URL.endsWith('/')?EPOXY_BACKEND_URL:EPOXY_BACKEND_URL+'/';
+ curlClient=new CurlClient({wisp});
+ await curlClient.init();
+ return curlClient;
+}
+async function fetchWithCurl(url,options){
+ const client=await getCurlClient();
+ const headers=Object.entries(options.headers||{}).map(([key,value])=>[key,String(value)]);
+ const result=await client.request(new URL(url),options.method||'GET',options.body??null,headers,options.signal);
+ return new Response(result.body,{status:result.status,statusText:result.statusText,headers:result.headers});
+}
 async function getEpoxyClient(){
  if(epoxyClient)return epoxyClient;
  const u=new URL(EPOXY_BACKEND_URL);
@@ -173,13 +190,17 @@ async function loadFrame(url,request={}){
   const method=(request.method||'GET').toUpperCase();
   if(!['GET','POST'].includes(method))throw new Error('This form method is not supported.');
   $('backendStatus').textContent='Fetching '+parsed.hostname+' through Epoxy…';
-  const client=await getEpoxyClient();
   const fetchOptions={method,headers:{'Accept':'text/html,application/xhtml+xml;q=0.9,*/*;q=0.8'}};
   if(method==='POST'){
    fetchOptions.headers['Content-Type']='application/x-www-form-urlencoded;charset=UTF-8';
    fetchOptions.body=String(request.body||'');
   }
-  const response=await client.fetch(parsed.href,fetchOptions);
+  // YouTube's initial document request uses libcurl.js over the same Wisp
+  // endpoint as Epoxy. This is an alternate HTTP stack, not a direct browser
+  // connection; other websites continue using Epoxy.
+  const response=isYouTubeHost
+   ?await fetchWithCurl(parsed.href,fetchOptions)
+   :await (await getEpoxyClient()).fetch(parsed.href,fetchOptions);
   if(!response.ok)throw new Error('Website returned HTTP '+response.status);
   const contentType=(response.headers.get('content-type')||'').toLowerCase();
   if(contentType.includes('text/css')||contentType.includes('javascript')||contentType.startsWith('image/')||contentType.startsWith('video/')||contentType.startsWith('audio/')){
