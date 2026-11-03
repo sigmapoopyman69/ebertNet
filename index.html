@@ -358,9 +358,7 @@ $('testBackend').onclick=async()=>{
  let wispUrl;
  try{
   const u=new URL(raw);
-  if(u.protocol==='https:')u.protocol='wss:';
-  else if(u.protocol==='http:')u.protocol='ws:';
-  if(!['ws:','wss:'].includes(u.protocol))throw Error('Use ws:// or wss://');
+  if(u.protocol!=='wss:')throw Error('Use a secure wss:// backend address (TLS).');
   wispUrl=u.href;
  }catch{status.textContent='Enter a valid secure wss:// backend address.';return}
  status.textContent='Loading Epoxy client…';
@@ -375,7 +373,7 @@ $('testBackend').onclick=async()=>{
   status.textContent='SUCCESS · Wisp connected · HTTP '+response.status+' · '+body.length+' characters received through Epoxy';
  }catch(error){
   status.textContent='Connection/test failed: '+(error?.message||String(error));
-  $('backendResult').textContent='Check that the backend is deployed with WebSocket support, the URL is wss:// on an HTTPS page, and the Wisp service is online and reachable. Details are shown above.';
+  $('backendResult').textContent='Check that the backend is deployed with WebSocket support, uses a valid TLS certificate, the URL is wss:// on an HTTPS page, and the Wisp service is online and reachable. Details are shown above.';
  }
 };
 document.querySelectorAll('[data-url]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.url)));
