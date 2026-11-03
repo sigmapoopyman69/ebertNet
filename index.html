@@ -70,7 +70,7 @@ function storageSet(key,value){try{localStorage.setItem(key,value)}catch{}}
 let searchEngine=storageGet('ebertnet-search-engine','duckduckgo');
 let epoxyClient=null;
 let currentPageScriptsEnabled=false;
-const ALLOWED_HOSTS=new Set(['example.com','developer.mozilla.org','youtube.com','www.youtube.com','m.youtube.com','duckduckgo.com','www.duckduckgo.com']);
+const ALLOWED_HOSTS=new Set(['example.com','developer.mozilla.org','youtube.com','www.youtube.com','m.youtube.com','duckduckgo.com','www.duckduckgo.com','html.duckduckgo.com']);
 function escapeHtml(value){return String(value).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));}
 async function getEpoxyClient(){
  if(epoxyClient)return epoxyClient;
@@ -86,7 +86,7 @@ async function getEpoxyClient(){
  return epoxyClient;
 }
 
-function searchUrl(query){const q=encodeURIComponent(query);const engines={duckduckgo:'https://duckduckgo.com/?q='+q,google:'https://www.google.com/search?q='+q,brave:'https://search.brave.com/search?q='+q,bing:'https://www.bing.com/search?q='+q};return engines[searchEngine]||engines.duckduckgo}
+function searchUrl(query){const q=encodeURIComponent(query);const engines={duckduckgo:'https://html.duckduckgo.com/html/?q='+q,google:'https://www.google.com/search?q='+q,brave:'https://search.brave.com/search?q='+q,bing:'https://www.bing.com/search?q='+q};return engines[searchEngine]||engines.duckduckgo}
 function looksLikeAddress(raw){
  const v=raw.trim();
  if(!v)return false;
