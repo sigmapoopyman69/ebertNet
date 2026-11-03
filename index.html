@@ -37,7 +37,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <button class="tool" id="settingsToggle" title="Settings" aria-label="Settings">⚙</button>
 </div>
 <div class="tabs" id="tabs"></div>
-<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Stage 2 loads sanitized stylesheets and images through Epoxy. Scripts and active embeds remain disabled.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
+<section class="settings-panel" id="settingsPanel" aria-label="Browser settings"><h3>ebertNet settings</h3><label for="searchEngine">Search engine</label><select id="searchEngine"><option value="duckduckgo">DuckDuckGo</option><option value="google">Google</option><option value="brave">Brave Search</option><option value="bing">Bing</option></select><label for="backendUrl">Epoxy backend address</label><input id="backendUrl" type="url" value="wss://ebertnet.wispbyte.app" placeholder="wss://your-wisp-host"><p>Uses Epoxy over Wisp to fetch only backend-allowlisted hosts: example.com and developer.mozilla.org. Stage 3 improves address detection, direct navigation, and clear blocked-site errors. Only explicitly allowlisted hosts can load; scripts and active embeds remain disabled.</p><div class="settings-row"><button id="testBackend">Test HTTP endpoint</button><button id="closeSettings">Close</button></div><div class="settings-status" id="backendStatus" role="status">Backend not configured.</div><pre id="backendResult" style="white-space:pre-wrap;overflow:auto;max-height:180px;font-size:10px;color:#cbbdc3"></pre></section><div class="workspace">
 
 <section class="viewer">
 <div class="welcome" id="welcome"><div class="welcome-inner">
@@ -51,7 +51,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 <p>Stage 2 supports sanitized CSS and images on the two enabled demo hosts. Scripts and active embeds remain disabled.</p>
 </div></div>
 <iframe id="page" title="ebertNet webpage viewer" sandbox="allow-forms allow-scripts allow-same-origin allow-downloads" referrerpolicy="strict-origin-when-cross-origin" style="display:none"></iframe>
-<div class="blocked" id="blocked"><div><h2>Page rendering is not available yet</h2><p>The current prototype still uses a basic page container. The next browser-engine milestone is rendering fetched page content through the ebertNet backend.</p><button id="backHome">Return to ebertNet home</button></div></div>
+<div class="blocked" id="blocked"><div><h2>Page rendering is not available yet</h2><p>This site is not currently enabled in the ebertNet backend allowlist. Add its hostname to both allowlists to browse it.</p><button id="backHome">Return to ebertNet home</button></div></div>
 </section>
 </div>
 <footer class="footer"><span>EBERTNET <b>/</b> BROWSER PROTOTYPE</span><span>History records addresses opened from this browser</span></footer>
@@ -86,24 +86,48 @@ async function getEpoxyClient(){
 }
 
 function searchUrl(query){const q=encodeURIComponent(query);const engines={duckduckgo:'https://duckduckgo.com/?q='+q,google:'https://www.google.com/search?q='+q,brave:'https://search.brave.com/search?q='+q,bing:'https://www.bing.com/search?q='+q};return engines[searchEngine]||engines.duckduckgo}
-function safeUrl(raw){let s=raw.trim();if(!s)return '';if(/\s/.test(s)||(!s.includes('.')&&!/^https?:\/\//i.test(s)))return searchUrl(s);if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(s))s='https://'+s;try{const u=new URL(s);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}}
+function looksLikeAddress(raw){
+ const v=raw.trim();
+ if(!v)return false;
+ if(/^[a-z][a-z0-9+.-]*:\/\//i.test(v))return true;
+ if(/\s/.test(v))return false;
+ return v.includes('.')||v.includes('/')||v.includes(':')||v==='localhost';
+}
+function safeUrl(raw){
+ let s=raw.trim();if(!s)return '';
+ if(!looksLikeAddress(s))return searchUrl(s);
+ if(!/^[a-z][a-z0-9+.-]*:\/\//i.test(s))s='https://'+s;
+ try{const u=new URL(s);return ['http:','https:'].includes(u.protocol)?u.href:''}catch{return ''}
+}
 function label(url){try{return new URL(url).hostname.replace(/^www\./,'')}catch{return 'New tab'}}
 function showHome(){frame.style.display='none';blocked.style.display='none';welcome.style.display='flex';address.value='';}
 function renderTabs(){const host=$('tabs');host.innerHTML='';state.tabs.forEach(t=>{const b=document.createElement('button');b.className='tab'+(t.id===state.active?' active':'');b.innerHTML='<span>◉</span><span class="tabname"></span><span class="tabclose" title="Close tab">×</span>';b.querySelector('.tabname').textContent=t.title||'New tab';b.addEventListener('click',()=>activate(t.id));b.querySelector('.tabclose').addEventListener('click',e=>{e.stopPropagation();closeTab(t.id)});host.appendChild(b)});const plus=document.createElement('button');plus.className='newtab';plus.textContent='+';plus.title='New tab';plus.onclick=newTab;host.appendChild(plus)}
 function renderLists(){}
 function activate(id){state.active=id;const t=tab();renderTabs();if(t.url){address.value=t.url;loadFrame(t.url)}else showHome();updateNav();save()}
 function updateNav(){const t=tab();$('back').disabled=t.index<=0;$('forward').disabled=t.index<0||t.index>=t.entries.length-1}
+function showNavigationError(title,message){
+ welcome.style.display='none';frame.style.display='none';blocked.style.display='flex';
+ blocked.querySelector('h2').textContent=title;
+ blocked.querySelector('p').textContent=message;
+ $('backendStatus').textContent=message;
+}
 function navigate(raw,fromList=false){
  const input=String(raw||'').trim();
  if(!input){address.focus();return}
- const isSearch=!fromList&&(/\s/.test(input)||(!input.includes('.')&&!/^https?:\/\//i.test(input)));
+ const isSearch=!fromList&&!looksLikeAddress(input);
  const url=isSearch?searchUrl(input):safeUrl(input);
  if(!url){address.focus();return}
  const t=tab();
- if(!isSearch){try{const check=new URL(url);if(!ALLOWED_HOSTS.has(check.hostname)){address.value=input;$('backendStatus').textContent='Blocked: '+check.hostname+' is not in the backend allowlist.';return}}catch{address.focus();return}}
  const searchResultLink=fromList&&/^(https?:\/\/)?(www\.)?(duckduckgo\.com|google\.com|search\.brave\.com|bing\.com)\//i.test(url);
  const openExternal=isSearch||searchResultLink;
  if(!openExternal){
+  let parsed;
+  try{parsed=new URL(url)}catch{showNavigationError('Invalid web address','Check the address and try again.');return}
+  if(!ALLOWED_HOSTS.has(parsed.hostname)){
+   address.value=input;
+   showNavigationError('Website not enabled yet',parsed.hostname+' is not in the ebertNet backend allowlist. This address was not sent to Google. Add this host to both the frontend and backend allowlists before it can load.');
+   return;
+  }
   if(!fromList){t.entries=t.entries.slice(0,t.index+1);t.entries.push(url);t.index=t.entries.length-1}
   t.url=url;t.title=label(url);address.value=url;loadFrame(url);
  }else{
@@ -111,7 +135,7 @@ function navigate(raw,fromList=false){
   const link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener noreferrer';link.click();
   frame.style.display='none';blocked.style.display='none';welcome.style.display='flex';
  }
- state.history.push({url,title:isSearch?'Search: '+input.slice(0,28):label(url),at:Date.now()});state.history=state.history.slice(-300);
+ if(!isSearch){state.history.push({url,title:label(url),at:Date.now()});state.history=state.history.slice(-300)}
  renderTabs();renderLists();updateNav();save()
 }
 async function loadFrame(url){
