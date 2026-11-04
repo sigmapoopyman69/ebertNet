@@ -174,19 +174,13 @@ function navigate(raw,fromList=false){
  if(!isSearch){state.history.push({url,title:label(url),at:Date.now()});state.history=state.history.slice(-300)}
  renderTabs();renderLists();updateNav();save()
 }
-function youtubeEmbedUrl(raw){
+const HTTP_PROXY_BASE='https://ebertnet.wispbyte.app/proxy?url=';
+function proxyHttpUrl(raw,base){
  try{
-  const u=new URL(raw);let id='';
-  if(u.hostname==='youtu.be'||u.hostname.endsWith('.youtu.be'))id=u.pathname.split('/').filter(Boolean)[0]||'';
-  else if(u.hostname==='youtube.com'||u.hostname.endsWith('.youtube.com')||u.hostname==='youtube-nocookie.com'||u.hostname.endsWith('.youtube-nocookie.com')){
-   if(u.pathname==='/watch')id=u.searchParams.get('v')||'';
-   else if(u.pathname.startsWith('/shorts/')||u.pathname.startsWith('/embed/')||u.pathname.startsWith('/live/'))id=u.pathname.split('/')[2]||'';
-  }
-  if(!/^[A-Za-z0-9_-]{11}$/.test(id))return null;
-  const embed=new URL('https://www.youtube.com/embed/'+id);
-  embed.searchParams.set('vq','hd720');embed.searchParams.set('playsinline','1');embed.searchParams.set('rel','0');
-  return embed.href;
- }catch{return null}
+  const target=new URL(raw,base);
+  if(!['http:','https:'].includes(target.protocol))return raw;
+  return HTTP_PROXY_BASE+encodeURIComponent(target.href);
+ }catch{return raw}
 }
 async function loadFrame(url,request={}){
  try{const secureUrl=new URL(url);if(secureUrl.protocol==='http:')secureUrl.protocol='https:';if(secureUrl.protocol!=='https:')throw new Error('Only HTTPS websites are supported for secure browsing.');url=secureUrl.href;address.value=url;}catch(error){showNavigationError('Secure connection required',error?.message||'Use a valid HTTPS address.');return}
@@ -208,24 +202,8 @@ async function loadFrame(url,request={}){
   // YouTube's initial document uses Libcurl over the existing Wisp connection.
   // Redirects are followed there; other websites continue using Epoxy.
   const isYouTubeHost=parsed.hostname==='youtube.com'||parsed.hostname.endsWith('.youtube.com')||parsed.hostname==='youtu.be'||parsed.hostname.endsWith('.youtu.be')||parsed.hostname==='youtube-nocookie.com'||parsed.hostname.endsWith('.youtube-nocookie.com');
-  // Use YouTube's official embedded player for individual videos. This avoids
-  // the incomplete srcdoc/API path for watch pages while keeping arbitrary
-  // websites inside the normal sandbox.
-  const youtubeEmbed=isYouTubeHost?youtubeEmbedUrl(parsed.href):null;
-  if(youtubeEmbed){
-   const player=new URL(youtubeEmbed);
-   player.searchParams.set('hl','en');
-   player.searchParams.set('origin','https://sigmapoopyman69.github.io');
-   // srcdoc takes precedence over src on an iframe. Clear the previous
-   // proxied document before navigating to YouTube's hosted player.
-   frame.removeAttribute('srcdoc');
-   frame.removeAttribute('sandbox');
-   frame.setAttribute('referrerpolicy','strict-origin-when-cross-origin');
-   frame.setAttribute('allow','autoplay; encrypted-media; fullscreen; picture-in-picture');
-   frame.src=player.href;
-   $('backendStatus').textContent='YOUTUBE EMBED PLAYER · official YouTube player · '+label(parsed.href);
-   return;
-  }
+  // YouTube pages and individual watch URLs stay inside the ebertNet
+  // document path. No direct YouTube iframe fallback is permitted.
   if(isYouTubeHost){
    frame.setAttribute('sandbox','allow-forms allow-scripts allow-downloads allow-presentation');
    $('backendStatus').textContent='Fetching YouTube document through ebertNet…';
@@ -268,6 +246,31 @@ async function loadFrame(url,request={}){
   const securePolicy=doc.createElement('meta');securePolicy.httpEquiv='Content-Security-Policy';securePolicy.content='upgrade-insecure-requests';doc.head.prepend(securePolicy);
   const title=(doc.title||parsed.hostname).slice(0,120);
 
+  // Rewrite fetchable document resources to the ebertNet HTTP gateway.
+  // This includes media URLs, so Range requests reach the streaming proxy.
+  const resourceAttrs=[
+   ['script','src'],['img','src'],['source','src'],['video','src'],['audio','src'],
+   ['video','poster'],['track','src'],['iframe','src'],['embed','src'],['object','data'],
+   ['link','href'],['input[type=image]','src']
+  ];
+  for(const [selector,attr] of resourceAttrs){
+   doc.querySelectorAll(selector+'['+attr+']').forEach(node=>{
+    const raw=node.getAttribute(attr);
+    if(raw)node.setAttribute(attr,proxyHttpUrl(raw,parsed.href));
+   });
+  }
+  doc.querySelectorAll('[srcset]').forEach(node=>{
+   const value=node.getAttribute('srcset')||'';
+   const rewritten=value.split(',').map(part=>{
+    const bits=part.trim().split(/\\s+/,2);
+    return bits[0]?proxyHttpUrl(bits[0],parsed.href)+(bits[1]?' '+bits[1]:''):'';
+   }).join(', ');
+   node.setAttribute('srcset',rewritten);
+  });
+  doc.querySelectorAll('[style]').forEach(node=>{
+   node.setAttribute('style',(node.getAttribute('style')||'').replace(/url\\((['"]?)(.*?)\\1\\)/gi,(all,q,url)=>'url("'+proxyHttpUrl(url,parsed.href)+'")'));
+  });
+
   // Avoid delaying first paint while serially fetching stylesheets and images.
   // The browser renderer can request linked assets after srcdoc loads.
   // Keep native streaming for audio/video rather than downloading entire
@@ -308,14 +311,56 @@ async function loadFrame(url,request={}){
      a.setAttribute('href',ebertHome);
     }catch{}
    };
+   const gateway='https://ebertnet.wispbyte.app/proxy?url=';
+   const route=value=>{
+    try{
+     const u=new URL(value,document.baseURI);
+     if(u.protocol==='http:'||u.protocol==='https:')return gateway+encodeURIComponent(u.href);
+    }catch{}
+    return value;
+   };
+   const nativeFetch=window.fetch.bind(window);
+   window.fetch=(input,init)=>{
+    if(input instanceof Request){
+     const routed=route(input.url);
+     if(routed===input.url)return nativeFetch(input,init);
+     return nativeFetch(new Request(routed,input),init);
+    }
+    return nativeFetch(route(String(input)),init);
+   };
+   const nativeOpen=XMLHttpRequest.prototype.open;
+   XMLHttpRequest.prototype.open=function(method,url,...rest){
+    return nativeOpen.call(this,method,route(String(url)),...rest);
+   };
    document.querySelectorAll('a[href]').forEach(maskLink);
+   const routeResource=node=>{
+    if(!(node instanceof Element))return;
+    const attrs=['src','poster','data'];
+    for(const attr of attrs)if(node.hasAttribute(attr)){
+     const raw=node.getAttribute(attr);
+     if(raw&&!raw.startsWith(gateway))node.setAttribute(attr,route(raw));
+    }
+    if(node.hasAttribute('srcset')){
+     node.setAttribute('srcset',(node.getAttribute('srcset')||'').split(',').map(part=>{
+      const bits=part.trim().split(/\\s+/,2);return bits[0]?route(bits[0])+(bits[1]?' '+bits[1]:''):'';
+     }).join(', '));
+    }
+    if(node.hasAttribute('href')&&node.tagName==='LINK'){
+     const raw=node.getAttribute('href');if(raw&&!raw.startsWith(gateway))node.setAttribute('href',route(raw));
+    }
+   };
    new MutationObserver(records=>records.forEach(record=>{
     if(record.type==='attributes'&&record.target instanceof HTMLAnchorElement)maskLink(record.target);
+    if(record.type==='attributes')routeResource(record.target);
     record.addedNodes.forEach(node=>{
      if(node instanceof HTMLAnchorElement)maskLink(node);
-     if(node.querySelectorAll)node.querySelectorAll('a[href]').forEach(maskLink);
+     routeResource(node);
+     if(node.querySelectorAll){
+      node.querySelectorAll('a[href]').forEach(maskLink);
+      node.querySelectorAll('[src],[poster],[data],[srcset],link[href]').forEach(routeResource);
+     }
     });
-   })).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['href']});
+   })).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['href','src','poster','data','srcset']});
    document.addEventListener('click',e=>{
     const a=e.target&&e.target.closest?e.target.closest('a[href]'):null;
     if(!a)return;
@@ -346,11 +391,11 @@ async function loadFrame(url,request={}){
     }
    },true);
   })();`;
-  doc.body.appendChild(bridge);
+  doc.head.prepend(bridge);
 
   const html='<!doctype html>'+doc.documentElement.outerHTML;
   frame.srcdoc=html;
-  $('backendStatus').textContent=(isYouTubeHost?'YOUTUBE DOCUMENT VIA LIBCURL':'NATIVE HTML VIA EPOXY')+' · HTTP '+response.status+' · '+title+' · rendered by your browser engine · scripts enabled · media requests may use separate connections';
+  $('backendStatus').textContent=(isYouTubeHost?'YOUTUBE DOCUMENT VIA LIBCURL':'NATIVE HTML VIA EPOXY')+' · HTTP '+response.status+' · '+title+' · rendered by your browser engine · page resources routed through ebertNet HTTP gateway';
  }catch(error){
   frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{background:#100b0f;color:#fff;font:14px system-ui;padding:24px}h2{color:#ff8290}p{color:#cbbdc3;overflow-wrap:anywhere}</style><h2>Unable to load page</h2><p>'+escapeHtml(error?.message||String(error))+'</p>';
   $('backendStatus').textContent='Fetch failed: '+(error?.message||String(error));
