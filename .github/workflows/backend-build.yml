@@ -36,27 +36,54 @@ jobs:
           assert stream["allow_udp"] is False
           assert stream["allow_direct_ip"] is False
           assert stream["allow_loopback"] is False
+          assert stream["allow_multicast"] is False
           assert stream["allow_non_global"] is False
-          assert set(config["stream"]["allow_hosts"]) == {
-              r"^(example\.com|www\.example\.com)$",
-              r"^(developer\.mozilla\.org)$",
-          }
+          assert stream["allow_global"] is True
+          assert stream["allow_hosts"] == [r"^[a-zA-Z0-9.-]+$"]
+          assert stream["allow_ports"] == [[80, 80], [443, 443]]
           print("Backend configuration checks passed.")
           PY
 
       - name: Build Epoxy server container
         run: docker build --tag ebertnet-epoxy:test --file backend/Dockerfile .
 
-      - name: Smoke-test the Wisp listener
+      - name: Smoke-test HTTP gateway and Wisp listener
         run: |
           set -eu
           docker run --detach --rm --name ebertnet-epoxy-smoke -p 8080:8080 ebertnet-epoxy:test
           cleanup() { docker stop ebertnet-epoxy-smoke >/dev/null 2>&1 || true; }
+          fail() {
+            echo "Container logs:"
+            docker logs ebertnet-epoxy-smoke || true
+            exit 1
+          }
           trap cleanup EXIT
+
+          http_ready=false
           for attempt in $(seq 1 30); do
-            if curl --silent --show-error --fail http://127.0.0.1:8080/ > response.txt; then
+            if curl --silent --show-error --fail http://127.0.0.1:8080/health > health.json 2>/dev/null; then
+              http_ready=true
               break
             fi
             sleep 2
           done
-          grep -F "ebertNet Wisp endpoint" response.txt
+          [ "$http_ready" = true ] || fail
+          python3 - <<'PY' || exit 1
+          import json
+          from pathlib import Path
+          data = json.loads(Path("health.json").read_text())
+          assert data["status"] == "ok", data
+          assert data["streaming"] is True, data
+          print("HTTP proxy health check passed.")
+          PY
+
+          wisp_ready=false
+          for attempt in $(seq 1 30); do
+            if docker exec ebertnet-epoxy-smoke node --input-type=module -e 'const r = await fetch("http://127.0.0.1:8081/"); const body = await r.text(); if (!r.ok || !body.includes("ebertNet Wisp endpoint")) process.exit(1);' >/dev/null 2>&1; then
+              wisp_ready=true
+              break
+            fi
+            sleep 2
+          done
+          [ "$wisp_ready" = true ] || fail
+          echo "Wisp listener check passed."

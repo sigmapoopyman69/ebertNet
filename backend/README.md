@@ -1,28 +1,35 @@
-# ebertNet Epoxy/Wisp backend
+# ebertNet backend
 
-This directory contains a container recipe for the official Rust Epoxy Wisp server.
+The container runs three components behind one public service port:
+
+- Epoxy/Wisp handles the existing secure WebSocket transport.
+- The ebertNet HTTP proxy streams HTTP responses, including byte-range media responses.
+- Caddy routes WebSocket upgrades to Epoxy and ordinary HTTP requests to the HTTP proxy.
 
 ## Deployment
 
-Use a container hosting service that supports:
-- Dockerfile-based deployments
-- WebSocket upgrades
-- An externally assigned TCP port exposed through the `PORT` environment variable
-- HTTPS/WSS at the public service URL
+Use a container host that supports Dockerfile deployments, WebSocket upgrades, and an externally assigned TCP port in the PORT environment variable. Set the build context to the repository root and Dockerfile path to backend/Dockerfile. The public service must be available over HTTPS/WSS.
 
-Set the Docker build context to the repository root so the Dockerfile can copy `backend/epoxy.toml` and `backend/start.sh`. Set the Dockerfile path to `backend/Dockerfile`.
+The existing Wisp endpoint remains the public service root, for example wss://YOUR-SERVICE-HOST/.
 
-After deployment, the Wisp endpoint is the service's secure WebSocket URL (for example, `wss://YOUR-SERVICE-HOST/`). Do not put a real backend secret in this public repository.
+The HTTP proxy health endpoint is https://YOUR-SERVICE-HOST/health. A raw request can be tested at https://YOUR-SERVICE-HOST/proxy?url=https%3A%2F%2Fexample.com%2F.
 
-## Important safety defaults
+## HTTP proxy behavior
 
-The starter config is deliberately not an unrestricted public relay:
-- Only `example.com` and `developer.mozilla.org` are allowed initially.
-- Only ports 80 and 443 are allowed.
-- UDP, direct IP connections, loopback, multicast, and non-global destinations are disabled.
+This first implementation:
+- streams upstream response bodies rather than buffering entire files;
+- forwards byte-range and conditional request headers;
+- preserves status codes and relevant media headers, including Content-Range, Accept-Ranges, and Content-Type;
+- supports GET, HEAD, POST, PUT, PATCH, DELETE, and OPTIONS;
+- rewrites upstream redirect locations back through the proxy;
+- limits request bodies to 10 MiB;
+- rejects non-HTTP(S) targets, non-standard ports, URL credentials, and private/special-use IP destinations;
+- validates DNS answers and pins outbound connections to validated public addresses.
 
-Keep this allowlist while testing. Do not widen it into an unrestricted public relay. Before adding more destinations or allowing other users, add an authentication design supported by the exact Epoxy client version and review hosting-provider access controls.
+This is the transport foundation, not yet a complete transparent browser proxy. HTML and CSS URL rewriting, JavaScript module URL resolution, browser fetch/XHR integration, cookie-domain translation, and YouTube-specific origin behavior still need frontend/proxy integration. The existing iframe srcdoc renderer does not gain those capabilities merely because this endpoint exists.
 
-## Upstream
+## Security
 
-The server is built from the `server/` crate in the official MercuryWorkshop/epoxy-tls repository, branch `multiplexed`. The upstream project requires Rust nightly.
+Do not deploy this service as an unrestricted public relay for other users. Keep it private to its intended user, add authentication and rate limits before sharing it, and retain the destination and network-scope checks.
+
+The Epoxy/Wisp server retains its existing stream policy: public DNS hostnames, standard web ports, and no direct IP, loopback, multicast, or non-global destinations.
