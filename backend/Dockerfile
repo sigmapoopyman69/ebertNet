@@ -1,4 +1,4 @@
-FROM rust:nightly-bookworm AS epoxy-build
+FROM rustlang/rust:nightly-bookworm AS epoxy-build
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential pkg-config libssl-dev ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
