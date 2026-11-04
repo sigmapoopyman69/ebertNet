@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-PUBLIC_PORT="\${PORT:-8080}"
+PUBLIC_PORT="${PORT:-8080}"
 WISP_PORT=8081
 export HTTP_PROXY_PORT=8082
 case "$PUBLIC_PORT" in
