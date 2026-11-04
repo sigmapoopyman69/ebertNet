@@ -60,7 +60,7 @@ button,input{font:inherit}.app{position:relative;z-index:1;height:100dvh;display
 (()=>{
 const $=id=>document.getElementById(id);
 const frame=$('page'),welcome=$('welcome'),blocked=$('blocked'),address=$('address'),loading=$('loading');
- frame.addEventListener('load',()=>loading.classList.remove('visible'));
+ frame.addEventListener('load',()=>{if(frameLoadTimer!==null){clearTimeout(frameLoadTimer);frameLoadTimer=null;}loading.classList.remove('visible');});
 const STORE='ebertnet-browser-v1';
 let state={tabs:[{id:1,url:'',title:'New tab',entries:[],index:-1}],active:1,nextId:2,history:[],bookmarks:[]};
 try{const saved=JSON.parse(localStorage.getItem(STORE)||'null');if(saved&&Array.isArray(saved.tabs)&&saved.tabs.length){state={...state,...saved};}}catch{}
@@ -71,6 +71,7 @@ function storageSet(key,value){try{localStorage.setItem(key,value)}catch{}}
 let searchEngine='brave';
 let epoxyClient=null;
 let curlClient=null;
+let frameLoadTimer=null;
 const EPOXY_BACKEND_URL='wss://ebertnet.wispbyte.app';
 let currentPageScriptsEnabled=false;
 const ALLOWED_HOSTS=null; // Frontend permits any HTTP/HTTPS hostname; network-scope restrictions remain in the backend.
@@ -297,27 +298,19 @@ async function loadFrame(url,request={}){
   // The iframe remains sandboxed on an opaque origin. This allows page
   // scripts to execute without granting the remote page access to ebertNet's
   // parent window or local storage. Cross-origin APIs may still be restricted.
-  const bridge=doc.createElement('script');
-  bridge.textContent=`(()=> {
-   const ebertHome='https://sigmapoopyman69.github.io/ebertNet/';
-   const maskLink=a=>{
-    if(!a||!a.hasAttribute('href'))return;
-    if(a.getAttribute('href')===ebertHome&&a.hasAttribute('data-ebert-dest'))return;
-    const current=a.getAttribute('data-ebert-dest')||a.getAttribute('href');
-    try{
-     const dest=new URL(current,document.baseURI);
-     if(dest.protocol!=='https:'&&dest.protocol!=='http:')return;
-     a.setAttribute('data-ebert-dest',dest.href);
-     a.setAttribute('href',ebertHome);
-    }catch{}
-   };
+  // Keep the page bridge deliberately small. The old bridge installed a
+  // document-wide MutationObserver and repeatedly scanned added subtrees.
+  // On script-heavy pages this could monopolize the iframe's main thread.
+  function ebertBridge(){
    const gateway='https://ebertnet.wispbyte.app/proxy?url=';
    const route=value=>{
     try{
      const u=new URL(value,document.baseURI);
-     if(u.protocol==='http:'||u.protocol==='https:')return gateway+encodeURIComponent(u.href);
-    }catch{}
-    return value;
+     if(u.protocol!=='https:'&&u.protocol!=='http:')return value;
+     const absolute=u.href;
+     if(absolute.startsWith(gateway))return absolute;
+     return gateway+encodeURIComponent(absolute);
+    }catch{return value}
    };
    const nativeFetch=window.fetch.bind(window);
    window.fetch=(input,init)=>{
@@ -332,69 +325,62 @@ async function loadFrame(url,request={}){
    XMLHttpRequest.prototype.open=function(method,url,...rest){
     return nativeOpen.call(this,method,route(String(url)),...rest);
    };
-   document.querySelectorAll('a[href]').forEach(maskLink);
-   const routeResource=node=>{
-    if(!(node instanceof Element))return;
-    const attrs=['src','poster','data'];
-    for(const attr of attrs)if(node.hasAttribute(attr)){
-     const raw=node.getAttribute(attr);
-     if(raw&&!raw.startsWith(gateway))node.setAttribute(attr,route(raw));
-    }
-    if(node.hasAttribute('srcset')){
-     node.setAttribute('srcset',(node.getAttribute('srcset')||'').split(',').map(part=>{
-      const bits=part.trim().split(/\\s+/,2);return bits[0]?route(bits[0])+(bits[1]?' '+bits[1]:''):'';
-     }).join(', '));
-    }
-    if(node.hasAttribute('href')&&node.tagName==='LINK'){
-     const raw=node.getAttribute('href');if(raw&&!raw.startsWith(gateway))node.setAttribute('href',route(raw));
-    }
-   };
-   new MutationObserver(records=>records.forEach(record=>{
-    if(record.type==='attributes'&&record.target instanceof HTMLAnchorElement)maskLink(record.target);
-    if(record.type==='attributes')routeResource(record.target);
-    record.addedNodes.forEach(node=>{
-     if(node instanceof HTMLAnchorElement)maskLink(node);
-     routeResource(node);
-     if(node.querySelectorAll){
-      node.querySelectorAll('a[href]').forEach(maskLink);
-      node.querySelectorAll('[src],[poster],[data],[srcset],link[href]').forEach(routeResource);
-     }
-    });
-   })).observe(document.documentElement,{subtree:true,childList:true,attributes:true,attributeFilter:['href','src','poster','data','srcset']});
-   document.addEventListener('click',e=>{
-    const a=e.target&&e.target.closest?e.target.closest('a[href]'):null;
-    if(!a)return;
-    const original=a.getAttribute('data-ebert-dest');
-    if(!original)return;
-    let u;try{u=new URL(original,document.baseURI)}catch{return}
-    if(u.protocol!=='https:'&&u.protocol!=='http:')return;
-    e.preventDefault();
-    parent.postMessage({type:'ebert-navigate',url:u.href},'*');
+   if(navigator.sendBeacon){
+    const nativeBeacon=navigator.sendBeacon.bind(navigator);
+    navigator.sendBeacon=(url,data)=>nativeBeacon(route(String(url)),data);
+   }
+   // Intercept navigation without rewriting every anchor in the document.
+   document.addEventListener('click',event=>{
+    if(event.defaultPrevented||event.button!==0||event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+    const target=event.target;
+    const anchor=target&&target.closest?target.closest('a[href]'):null;
+    if(!anchor||anchor.hasAttribute('download'))return;
+    if(anchor.target&&anchor.target!=='_self')return;
+    let destination;
+    try{destination=new URL(anchor.getAttribute('href'),document.baseURI)}catch{return}
+    if(destination.protocol!=='https:'&&destination.protocol!=='http:')return;
+    const current=new URL(document.baseURI);
+    if(destination.origin===current.origin&&destination.pathname===current.pathname&&destination.search===current.search&&destination.hash)return;
+    event.preventDefault();
+    parent.postMessage({type:'ebert-navigate',url:destination.href},'*');
    },true);
-   document.addEventListener('submit',e=>{
-    const form=e.target;
+   document.addEventListener('submit',event=>{
+    const form=event.target;
     if(!(form instanceof HTMLFormElement))return;
-    let u;try{u=new URL(form.action||location.href,document.baseURI)}catch{return}
-    if(u.protocol!=='https:'&&u.protocol!=='http:')return;
-    e.preventDefault();
-    const submitter=e.submitter||null;
+    let destination;
+    try{destination=new URL(form.action||document.baseURI,document.baseURI)}catch{return}
+    if(destination.protocol!=='https:'&&destination.protocol!=='http:')return;
+    event.preventDefault();
+    const submitter=event.submitter||null;
     const method=(submitter&&submitter.hasAttribute('formmethod')?submitter.formMethod:form.method||'get').toLowerCase();
-    if(submitter&&submitter.hasAttribute('formaction')){try{u=new URL(submitter.formAction,document.baseURI)}catch{}}
-    if(u.protocol!=='https:'&&u.protocol!=='http:')return;
+    if(submitter&&submitter.hasAttribute('formaction')){
+     try{destination=new URL(submitter.formAction,document.baseURI)}catch{return}
+    }
+    if(destination.protocol!=='https:'&&destination.protocol!=='http:')return;
     const data=new FormData(form,submitter||undefined),pairs=[];
     for(const [key,value] of data.entries())if(typeof value==='string')pairs.push([key,value]);
     if(method==='get'){
-     for(const [key,value] of pairs)u.searchParams.append(key,value);
-     parent.postMessage({type:'ebert-navigate',url:u.href},'*');
+     for(const [key,value] of pairs)destination.searchParams.append(key,value);
+     parent.postMessage({type:'ebert-navigate',url:destination.href},'*');
     }else if(method==='post'){
-     parent.postMessage({type:'ebert-form',url:u.href,method:'POST',body:new URLSearchParams(pairs).toString()},'*');
+     parent.postMessage({type:'ebert-form',url:destination.href,method:'POST',body:new URLSearchParams(pairs).toString()},'*');
     }
    },true);
-  })();`;
+  }
+  const bridge=doc.createElement('script');
+  bridge.textContent='('+ebertBridge.toString()+')();';
   doc.head.prepend(bridge);
 
   const html='<!doctype html>'+doc.documentElement.outerHTML;
+  if(frameLoadTimer!==null)clearTimeout(frameLoadTimer);
   frame.srcdoc=html;
+  frameLoadTimer=setTimeout(()=>{
+   frameLoadTimer=null;
+   if(loading.classList.contains('visible')){
+    loading.classList.remove('visible');
+    $('backendStatus').textContent='The page did not finish loading within 15 seconds. The viewer is still available; try Reload or another address.';
+   }
+  },15000);
   $('backendStatus').textContent=(isYouTubeHost?'YOUTUBE DOCUMENT VIA LIBCURL':'NATIVE HTML VIA EPOXY')+' · HTTP '+response.status+' · '+title+' · rendered by your browser engine · page resources routed through ebertNet HTTP gateway';
  }catch(error){
   frame.srcdoc='<!doctype html><meta charset="utf-8"><style>body{background:#100b0f;color:#fff;font:14px system-ui;padding:24px}h2{color:#ff8290}p{color:#cbbdc3;overflow-wrap:anywhere}</style><h2>Unable to load page</h2><p>'+escapeHtml(error?.message||String(error))+'</p>';
@@ -453,7 +439,7 @@ $('testBackend').onclick=async()=>{
  }
 };
 document.querySelectorAll('[data-url]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.url)));
-frame.addEventListener('load',()=>{loading.classList.remove('visible');blocked.style.display='none';try{const doc=frame.contentDocument;if(doc&&!doc.__ebertLinks){doc.__ebertLinks=true;doc.addEventListener('click',e=>{const link=e.target.closest('[data-ebert-href]');if(!link)return;e.preventDefault();const dest=link.getAttribute('data-ebert-href');if(dest)navigate(dest)});}}catch{}});
+frame.addEventListener('load',()=>{loading.classList.remove('visible');blocked.style.display='none';});
 frame.addEventListener('error',()=>{frame.style.display='none';blocked.style.display='flex';});
 
 renderTabs();renderLists();const active=tab();if(active.url){address.value=active.url;loadFrame(active.url)}else showHome();updateNav();
