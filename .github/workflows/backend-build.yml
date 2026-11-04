@@ -36,11 +36,11 @@ jobs:
           assert stream["allow_udp"] is False
           assert stream["allow_direct_ip"] is False
           assert stream["allow_loopback"] is False
+          assert stream["allow_multicast"] is False
           assert stream["allow_non_global"] is False
-          assert set(config["stream"]["allow_hosts"]) == {
-              r"^(example\.com|www\.example\.com)$",
-              r"^(developer\.mozilla\.org)$",
-          }
+          assert stream["allow_global"] is True
+          assert stream["allow_hosts"] == [r"^[a-zA-Z0-9.-]+$"]
+          assert stream["allow_ports"] == [[80, 80], [443, 443]]
           print("Backend configuration checks passed.")
           PY
 
