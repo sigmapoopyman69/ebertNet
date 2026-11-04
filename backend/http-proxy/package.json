@@ -1,0 +1,7 @@
+{
+  "name": "ebertnet-http-proxy",
+  "private": true,
+  "type": "module",
+  "scripts": {"start": "node server.mjs"},
+  "dependencies": {"undici": "^7.16.0"}
+}
