@@ -453,7 +453,7 @@ $('testBackend').onclick=async()=>{
  }
 };
 document.querySelectorAll('[data-url]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.url)));
-frame.addEventListener('load',()=>{blocked.style.display='none';try{const doc=frame.contentDocument;if(doc&&!doc.__ebertLinks){doc.__ebertLinks=true;doc.addEventListener('click',e=>{const link=e.target.closest('[data-ebert-href]');if(!link)return;e.preventDefault();const dest=link.getAttribute('data-ebert-href');if(dest)navigate(dest)});}}catch{}});
+frame.addEventListener('load',()=>{loading.classList.remove('visible');blocked.style.display='none';try{const doc=frame.contentDocument;if(doc&&!doc.__ebertLinks){doc.__ebertLinks=true;doc.addEventListener('click',e=>{const link=e.target.closest('[data-ebert-href]');if(!link)return;e.preventDefault();const dest=link.getAttribute('data-ebert-href');if(dest)navigate(dest)});}}catch{}});
 frame.addEventListener('error',()=>{frame.style.display='none';blocked.style.display='flex';});
 
 renderTabs();renderLists();const active=tab();if(active.url){address.value=active.url;loadFrame(active.url)}else showHome();updateNav();
