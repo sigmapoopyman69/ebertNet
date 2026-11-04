@@ -74,6 +74,17 @@ function responseHeaders(upstream, res, target) {
 
 const server = http.createServer(async (req, res) => {
   res.setHeader("x-content-type-options", "nosniff");
+  // Browser pages run in a sandboxed origin and call this gateway cross-origin.
+  // Wildcard CORS is intentional: this endpoint does not use browser credentials.
+  res.setHeader("access-control-allow-origin", "*");
+  res.setHeader("access-control-allow-methods", "GET, HEAD, POST, PUT, PATCH, DELETE, OPTIONS");
+  res.setHeader("access-control-allow-headers", "accept, accept-language, authorization, cache-control, content-type, if-match, if-modified-since, if-none-match, if-range, if-unmodified-since, range");
+  res.setHeader("access-control-expose-headers", "accept-ranges, content-range, content-length, content-type, etag, last-modified, location");
+  if (req.method === "OPTIONS") {
+    res.writeHead(204, { "cache-control": "no-store" });
+    res.end();
+    return;
+  }
   if (req.url === "/health") {
     res.writeHead(200, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
     res.end(JSON.stringify({ service: "ebertNet HTTP proxy", status: "ok", streaming: true, rangeRequests: true }));
