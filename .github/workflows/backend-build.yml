@@ -2,7 +2,7 @@ name: Build ebertNet Epoxy backend
 
 on:
   push:
-    branches: [main]
+    branches: [main, rust-only-backend]
     paths:
       - "backend/**"
       - ".github/workflows/backend-build.yml"
@@ -23,6 +23,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check Rust-only gateway
+        run: cargo check --manifest-path backend/rust-gateway/Cargo.toml
 
       - name: Validate backend configuration
         run: |
@@ -90,7 +96,7 @@ jobs:
           echo "Wisp listener check passed."
 
       - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
