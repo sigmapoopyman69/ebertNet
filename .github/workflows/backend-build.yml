@@ -24,6 +24,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check Rust-only gateway
+        run: cargo check --manifest-path backend/rust-gateway/Cargo.toml
+
       - name: Validate backend configuration
         run: |
           python3 - <<'PY'
