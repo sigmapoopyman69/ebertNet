@@ -213,15 +213,30 @@ fn is_public_ip(ip: IpAddr) -> bool {
 }
 
 async fn wisp(
-    ws: WebSocketUpgrade,
+    mut ws: WebSocketUpgrade,
     OriginalUri(uri): OriginalUri,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
     let path = uri.path_and_query().map(|value| value.as_str()).unwrap_or("/");
-    let protocol = ws.protocol().map(str::to_owned);
-    ws.on_upgrade(move |socket| relay_wisp(socket, path.to_owned(), protocol))
+    let protocol_header = headers
+        .get("sec-websocket-protocol")
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
+    let protocols: Vec<String> = protocol_header
+        .as_deref()
+        .unwrap_or("")
+        .split(',')
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_owned)
+        .collect();
+    if !protocols.is_empty() {
+        ws = ws.protocols(protocols);
+    }
+    ws.on_upgrade(move |socket| relay_wisp(socket, path.to_owned(), protocol_header))
 }
 
-async fn relay_wisp(mut downstream: WebSocket, path: String, protocol: Option<String>) {
+async fn relay_wisp(mut downstream: WebSocket, path: String, protocol_header: Option<String>) {
     let upstream_url = format!("{EPOXY_ADDR}{path}");
     let mut request = match upstream_url.into_client_request() {
         Ok(request) => request,
@@ -231,9 +246,9 @@ async fn relay_wisp(mut downstream: WebSocket, path: String, protocol: Option<St
             return;
         }
     };
-    if let Some(protocol) = protocol {
-        if let Ok(value) = HeaderValue::from_str(&protocol) {
-            request.headers_mut().insert(header::SEC_WEBSOCKET_PROTOCOL, value);
+    if let Some(protocols) = protocol_header {
+        if let Ok(value) = HeaderValue::from_str(&protocols) {
+            request.headers_mut().insert("sec-websocket-protocol", value);
         }
     }
 
