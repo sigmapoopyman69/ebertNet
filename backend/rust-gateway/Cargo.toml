@@ -1,0 +1,14 @@
+[package]
+name = "ebertnet-rust-gateway"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+axum = { version = "0.8", features = ["ws"] }
+bytes = "1"
+futures-util = "0.3"
+http = "1"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "stream"] }
+tokio = { version = "1", features = ["full"] }
+tokio-tungstenite = "0.28"
+url = "2"
