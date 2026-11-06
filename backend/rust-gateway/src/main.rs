@@ -9,7 +9,6 @@ use axum::{
     routing::{any, get},
     Router,
 };
-use bytes::Bytes;
 use futures_util::{SinkExt, StreamExt};
 use reqwest::{redirect::Policy, Client};
 use std::{net::{IpAddr, SocketAddr}, time::Duration};
@@ -64,6 +63,7 @@ async fn proxy(State(_state): State<AppState>, request: Request<Body>) -> Respon
     };
 
     let method = request.method().clone();
+    let incoming_headers = request.headers().clone();
     let body = match to_bytes(request.into_body(), MAX_UPLOAD_BYTES).await {
         Ok(bytes) => bytes,
         Err(_) => return text_response(StatusCode::PAYLOAD_TOO_LARGE, "Request body exceeds the 10 MiB limit."),
@@ -81,7 +81,7 @@ async fn proxy(State(_state): State<AppState>, request: Request<Body>) -> Respon
         "cookie", "if-match", "if-modified-since", "if-none-match", "if-range",
         "if-unmodified-since", "origin", "range", "referer", "user-agent",
     ] {
-        if let Some(value) = request.headers().get(name) {
+        if let Some(value) = incoming_headers.get(name) {
             headers.insert(name, value.clone());
         }
     }
